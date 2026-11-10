@@ -61,7 +61,7 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .product-frame { width: 100%; margin: auto; }
 
 .display { width: 100%; position: relative; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 17% 20%, #7d8587 0%, transparent 56%), radial-gradient(ellipse at 85% 80%, #424e50 0%, transparent 60%), linear-gradient(135deg, #343c3e, #1d2426); border: 7px solid #242426; border-bottom: 0; border-radius: 23px 23px 0 0; }
-/* Size the screen from its content width, independently of the bezel and zoom. */
+/* The screen and its entire demo share one 900 × 534 coordinate space. */
 .display::before { content: ''; display: block; aspect-ratio: 900 / 534; }
 
 
@@ -580,7 +580,6 @@ details[open] summary > span { transform: rotate(45deg); }
   .story { width: calc(100% - 40px); margin-bottom: 60px; }
   .display { border-width: 5px; }
   .content-width, .site-header { width: calc(100% - 48px); }
-  .editor-window { top: 20%; width: 92%; }
   .install-steps { gap: 20px; }
   .install-steps h3 { font-size: 15px; }
   .install-steps p { font-size: 12px; }
@@ -601,39 +600,11 @@ details[open] summary > span { transform: rotate(45deg); }
   .text-link { font-size: 14px; }
   .story { width: calc(100% - 28px); margin-bottom: 50px; }
   .display { border-radius: 16px 16px 0 0; background-position: 65% center; }
-  .desktop-menubar { padding-inline: 9px; font-size: 8px; }
-  .desktop-app > span, .wifi-bars { display: none; }
-  .desktop-system { gap: 6px; }
-  .notch-toggle { width: 120px; height: 28px; }
-  .notch-panel, .display.is-calendar .notch-panel { max-width: calc(100% - 10px); padding: 35px 12px 12px; }
-  .panel-heading strong { font-size: 16px; }
-  .panel-heading strong > time { margin-left: 6px; font-size: 11px; }
-  .icon-button { width: 30px; height: 30px; }
-  .task { min-height: 47px; }
-  .task-title { font-size: 12px; }
-  .course { font-size: 10px; }
-  .due { font-size: 10px; }
-  .list-heading { font-size: 8px; }
-  .personal-tasks .task { min-height: 40px; }
-  .calendar-title { font-size: 13px; }
-  .calendar-grid { gap: 1px; }
-  .calendar-day { height: 37px; font-size: 10px; }
-  .calendar-legend { font-size: 7px; gap: 7px; }
-  .selected-day { font-size: 10px; }
-
   .scene-controls { flex-wrap: wrap; gap: 10px; margin-top: 18px; }
   .scene-buttons { width: 100%; justify-content: space-between; }
   .scene-buttons button { flex: 1; font-size: 11px; padding-inline: 12px; }
   .extra-controls { gap: 25px; }
   .story-footer { margin-top: 3px; }
-  .demo-alert { width: calc(100% - 10px); }
-  .alert-content strong { font-size: 11px; }
-  .alert-content > span:last-child { font-size: 9px; }
-  .editor-body { padding-inline: 12px; }
-  .editor-row { gap: 6px; font-size: 8px; }
-  .editor-row strong { font-size: 9px; }
-  .editor-row .course { display: none; }
-  .editor-toolbar { font-size: 9px; padding-inline: 12px; gap: 10px; }
   .content-width, .site-header { width: calc(100% - 40px); }
   .install-section { padding-block: 45px 25px; }
   h2 { font-size: 36px; }
@@ -665,11 +636,6 @@ details[open] summary > span { transform: rotate(45deg); }
 .frame-chin { height: 16px; border-radius: 0 0 12px 12px; background: linear-gradient(90deg, #afb1b4, #dedfe0 45%, #b6b8bb); }
 .frame-chin span { display: block; width: 70px; height: 6px; margin: auto; background: #979a9e; border-radius: 0 0 5px 5px; }
 .desktop-surface { position: absolute; top: 0; left: 0; width: 900px; height: 534px; transform-origin: top left; }
-.js .expand-button { display: none; }
-@media (max-width: 900px) { .js .expand-button { display: flex; } }
-.product-frame.is-expanded .display { overflow-x: hidden; overflow-y: auto; }
-/* Zoom the demo inside the landscape screen; scroll to see its lower content. */
-.product-frame.is-expanded .desktop-surface { width: 100%; height: 534px; transform: none !important; }
 html:not(.js) .display { overflow-x: hidden; overflow-y: auto; }
 html:not(.js) .desktop-surface { width: 100%; height: 534px; }
 
@@ -680,7 +646,6 @@ html:not(.js) .desktop-surface { width: 100%; height: 534px; }
 .menu-clock { position: absolute; inset: 0 0 0 auto; width: auto; min-width: 105px; padding-left: 6px; display: flex; justify-content: flex-end; align-items: center; padding-right: 6px; font-size: 8.5px; font-weight: 600; white-space: nowrap; letter-spacing: -.025em; font-variant-numeric: tabular-nums; text-shadow: 0 1px 1px rgb(0 0 0 / 25%); }
 .notch-toggle { width: 108.4px; height: 20.3px; border-radius: 0 0 5px 5px; }
 .notch-toggle .camera { display: none; }
-.product-frame.is-expanded .menu-clock { width: auto; min-width: 105px; padding-left: 7px; background: transparent; }
 
 /* The expanding panel covers the menu strip beside the notch. */
 .desktop-menubar { z-index: 4; }
@@ -758,8 +723,3 @@ html:not(.js) .desktop-surface { width: 100%; height: 534px; }
   .lms-guide-heading p { font-size: 16px; }
 }
 @media (prefers-color-scheme: dark) { .lms-screen > span { color: #2997ff; } }
-
-@media (max-width: 600px) {
-  .product-frame:not(.is-expanded) .menu-clock { font-size: 14px; min-width: 175px; }
-  .product-frame:not(.is-expanded) .desktop-brand { font-size: 14px; }
-}

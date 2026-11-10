@@ -4,22 +4,13 @@ const $ = (id) => document.getElementById(id);
 const story = $('experience');
 const display = $('product-display');
 const panel = $('notch-panel');
-const compact = matchMedia('(max-width: 900px)');
-const frame = document.querySelector('.product-frame');
-function expanded(value) {
-  frame.classList.toggle('is-expanded', value);
-  display.scrollTop = 0;
-  display.scrollLeft = 0;
-  $('expand-demo').setAttribute('aria-pressed', String(value));
-  $('expand-demo').textContent = value ? '전체 보기' : '화면 확대';
-}
 const reduced = matchMedia('(prefers-reduced-motion: reduce)');
 const state = { scene: 1, open: true, calendar: false, editor: false, checked: new Set() };
 let alertTimer = null;
 let clockTimer = null;
 let clockVisible = false;
 const names = ['노치', '목록', '달력', '편집기'];
-const reveal = () => { if (compact.matches) expanded(true); story.scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'start' }); };
+const reveal = () => { story.scrollIntoView({ behavior: reduced.matches ? 'instant' : 'smooth', block: 'start' }); };
 const announce = (message) => { $('demo-status').textContent = message; };
 function hideAlert() { clearTimeout(alertTimer); alertTimer = null; $('demo-alert').hidden = true; describeFeature(); }
 function describeFeature() {
@@ -173,8 +164,6 @@ function updateClock() {
 new IntersectionObserver(([entry]) => { clockVisible = entry.isIntersecting; if (!clockVisible) hideAlert(); updateClock(); }).observe(story);
 document.addEventListener('visibilitychange', () => { if (document.hidden) hideAlert(); updateClock(); });
 addEventListener('focus', updateClock);
-$('expand-demo').addEventListener('click', () => expanded(!frame.classList.contains('is-expanded')));
-compact.addEventListener('change', () => { if (!compact.matches) expanded(false); });
 new ResizeObserver(() => { $('desktop-surface').style.transform = `scale(${display.clientWidth / 900})`; }).observe(display);
 $('notch-panel').querySelector('a[href="#setup"]').addEventListener('click', () => { $('setup').open = true; });
 const download = verifiedDownload(SITE_CONFIG);
