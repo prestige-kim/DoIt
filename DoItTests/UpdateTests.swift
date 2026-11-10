@@ -92,6 +92,40 @@ final class UpdateTests: XCTestCase {
         }
     }
 
+    @MainActor private func withExternalDistributionFlag(_ enabled: Bool, _ body: () -> Void) {
+        let defaults = UserDefaults.standard
+        let original = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
+        let oldEnvironment = ProcessInfo.processInfo.environment["DoItDistributionEnabled"]
+        defer {
+            defaults.setVolatileDomain(original, forName: UserDefaults.argumentDomain)
+            if let oldEnvironment { setenv("DoItDistributionEnabled", oldEnvironment, 1) }
+            else { unsetenv("DoItDistributionEnabled") }
+        }
+        var overridden = original
+        overridden["DoItDistributionEnabled"] = enabled
+        defaults.setVolatileDomain(overridden, forName: UserDefaults.argumentDomain)
+        setenv("DoItDistributionEnabled", enabled ? "true" : "false", 1)
+        body()
+    }
+
+    @MainActor func testExternalSettingsCannotFlipDistributionGate() {
+        let url = "https://prestige-kim.github.io/DoIt/appcast.xml"
+        for (bundleGate, externalGate) in [(false, true), (true, false)] {
+            withExternalDistributionFlag(externalGate) {
+                var values = info(url)
+                values["DoItDistributionEnabled"] = bundleGate
+                let configuration = UpdateConfiguration(info: values)
+                let driver = FakeDriver()
+                let service = UpdateService(configuration: configuration, driver: driver)
+                service.checkForUpdates()
+                XCTAssertEqual(configuration.isReady, bundleGate)
+                XCTAssertEqual(driver.starts, bundleGate ? 1 : 0)
+                XCTAssertEqual(driver.checks, bundleGate ? 1 : 0)
+                XCTAssertEqual(service.status, bundleGate ? "새 버전을 확인할 수 있어요" : "업데이트 준비 중")
+            }
+        }
+    }
+
     func testValidationGateIsSeparateAndStrictlyTyped() {
         var values = info("http://127.0.0.1:8765/appcast.xml", validation: true)
         values["DoItDistributionEnabled"] = false
@@ -104,21 +138,26 @@ final class UpdateTests: XCTestCase {
     }
 
     @MainActor func testCurrentBundleGateIgnoresDefaultsArgumentsAndEnvironment() {
-        let defaults = UserDefaults.standard
-        let original = defaults.volatileDomain(forName: UserDefaults.argumentDomain)
-        let oldEnvironment = ProcessInfo.processInfo.environment["DoItDistributionEnabled"]
-        defer {
-            defaults.setVolatileDomain(original, forName: UserDefaults.argumentDomain)
-            if let oldEnvironment { setenv("DoItDistributionEnabled", oldEnvironment, 1) }
-            else { unsetenv("DoItDistributionEnabled") }
+        let baseline = UpdateConfiguration.current
+        let baselineDriver = FakeDriver()
+        let baselineService = UpdateService(configuration: baseline, driver: baselineDriver)
+        baselineService.checkForUpdates()
+        XCTAssertFalse(baseline.isValidation)
+        XCTAssertEqual(baseline.feedURL?.absoluteString, "https://prestige-kim.github.io/DoIt/appcast.xml")
+        for externalGate in [true, false] {
+            withExternalDistributionFlag(externalGate) {
+                let current = UpdateConfiguration.current
+                let driver = FakeDriver()
+                let service = UpdateService(configuration: current, driver: driver)
+                service.checkForUpdates()
+                XCTAssertEqual(current.isReady, baseline.isReady)
+                XCTAssertEqual(current.isValidation, baseline.isValidation)
+                XCTAssertEqual(current.feedURL, baseline.feedURL)
+                XCTAssertEqual(driver.starts, baselineDriver.starts)
+                XCTAssertEqual(driver.checks, baselineDriver.checks)
+                XCTAssertEqual(service.status, baselineService.status)
+            }
         }
-        defaults.setVolatileDomain(["DoItDistributionEnabled": true], forName: UserDefaults.argumentDomain)
-        setenv("DoItDistributionEnabled", "true", 1)
-        XCTAssertFalse(UpdateConfiguration.current.isReady)
-        let driver = FakeDriver()
-        let service = UpdateService(configuration: .current, driver: driver)
-        service.checkForUpdates()
-        XCTAssertEqual(driver.starts, 0); XCTAssertEqual(driver.checks, 0)
     }
 
     @MainActor func testSavedAutomaticChoiceIsNotResetOnLaunch() {

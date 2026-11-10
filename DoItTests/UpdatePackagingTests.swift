@@ -53,16 +53,30 @@ final class UpdatePackagingTests: XCTestCase {
         var p = values(); p["SUVerifyUpdateBeforeExtraction"] = false
         XCTAssertFalse(try packageAccepts(p))
     }
-    func testBuiltBundleDefaultsHaveCorrectTypesAndOneDaySchedule() {
+    func testBuiltBundleDefaultsHaveCorrectTypesAndOneDaySchedule() throws {
         let p = Bundle.main.infoDictionary ?? [:]
         for (key, expected) in ["SUEnableAutomaticChecks": true, "SUAllowsAutomaticUpdates": false,
                                 "SUAutomaticallyUpdate": false, "SUEnableSystemProfiling": false,
-                                "SUVerifyUpdateBeforeExtraction": true] {
+                                "SUVerifyUpdateBeforeExtraction": true,
+                                "DoItUpdateValidation": false] {
             XCTAssertEqual(p[key] as? Bool, expected)
             XCTAssertEqual(CFGetTypeID(p[key]! as CFTypeRef), CFBooleanGetTypeID())
         }
+        let gate = try XCTUnwrap(p["DoItDistributionEnabled"])
+        XCTAssertEqual(CFGetTypeID(gate as CFTypeRef), CFBooleanGetTypeID())
         XCTAssertEqual(p["SUScheduledCheckInterval"] as? Int, 86400)
         XCTAssertNil(p["NSAppTransportSecurity"])
-        XCTAssertFalse(UpdateConfiguration.current.isReady, "유효 주소여도 공개 준비 gate가 꺼져 있으면 통신하지 않음")
+        XCTAssertEqual(p["SUFeedURL"] as? String, "https://prestige-kim.github.io/DoIt/appcast.xml")
+        var validProduction = p
+        validProduction["DoItDistributionEnabled"] = true
+        XCTAssertTrue(UpdateConfiguration(info: validProduction).isReady)
+        XCTAssertTrue(try packageAccepts(validProduction))
+        if gate as? Bool == true {
+            XCTAssertTrue(UpdateConfiguration.current.isReady)
+            XCTAssertTrue(try packageAccepts(p))
+        } else {
+            XCTAssertFalse(UpdateConfiguration.current.isReady)
+            XCTAssertFalse(try packageAccepts(p))
+        }
     }
 }
