@@ -1,0 +1,103 @@
+name: DoIt
+options:
+  bundleIdPrefix: com.personal
+  deploymentTarget:
+    macOS: "14.0"
+  createIntermediateGroups: true
+
+configs:
+  Debug: debug
+  Release: release
+  UpdateValidation: release
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.1
+
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    # 버전 (T-010): 올릴 때는 여기 두 줄만 바꾼다. 빌드 번호는 배포할 때마다 정수로 1씩 올린다
+    MARKETING_VERSION: "0.9.2"
+    CURRENT_PROJECT_VERSION: "10"
+    # 서명 (D-017): 자체 서명 인증서 1개로 Debug·Release·테스트 모두 서명 → 업데이트해도 '같은 앱'으로 인식된다.
+    # 인증서는 로그인 키체인에만 있고 저장소에는 없다. 없는 맥에서 임시로 빌드하려면
+    # xcodebuild ... CODE_SIGN_IDENTITY=- (임시 서명, 이 빌드는 배포·설치에 쓰지 않는다)
+    CODE_SIGN_IDENTITY: "DoIt Self Signing"
+    CODE_SIGN_STYLE: Manual
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  DoIt:
+    type: application
+    platform: macOS
+    sources:
+      - path: DoIt
+        excludes:
+          - "Editor/Web"
+      # T-006 전체 편집기 웹 파일: 폴더째 번들에 넣는다 (DoIt.app/Contents/Resources/Web/).
+      # WebView 읽기 허용을 이 폴더 하나로만 제한하기 위해 (D-016)
+      - path: DoIt/Editor/Web
+        type: folder
+        buildPhase: resources
+    info:
+      path: DoIt/Resources/Info.plist
+      properties:
+        CFBundleDisplayName: DoIt
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        SUFeedURL: https://prestige-kim.github.io/DoIt/appcast.xml
+        SUPublicEDKey: "w+pcqoFP4bQaG335S1XvAw2uxW9EObIwLt3lb1QK7Uc="
+        SUEnableAutomaticChecks: true
+        SUScheduledCheckInterval: 86400
+        SUEnableSystemProfiling: false
+        SUAutomaticallyUpdate: false
+        SUAllowsAutomaticUpdates: false
+        SUVerifyUpdateBeforeExtraction: true
+        SUShowReleaseNotes: false
+        DoItDistributionEnabled: false
+        DoItUpdateValidation: false
+        LSMinimumSystemVersion: "14.0"
+        LSUIElement: true
+        # 같은 앱을 두 번 띄우지 않는다 (T-010). 다시 열면 실행 중인 DoIt이 applicationShouldHandleReopen을 받는다
+        LSMultipleInstancesProhibited: true
+    dependencies:
+      - package: Sparkle
+    preBuildScripts:
+      - name: Prepare update configuration
+        script: /usr/bin/python3 "$SRCROOT/scripts/lib/update_config.py" prepare "$SRCROOT/DoIt/Resources/Info.plist" "$DERIVED_FILE_DIR/DoIt-Info.plist" "$CONFIGURATION"
+        inputFiles:
+          - $(SRCROOT)/DoIt/Resources/Info.plist
+          - $(SRCROOT)/scripts/lib/update_config.py
+        outputFiles:
+          - $(DERIVED_FILE_DIR)/DoIt-Info.plist
+    settings:
+      configs:
+        UpdateValidation:
+          SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UPDATE_VALIDATION"
+          SWIFT_OPTIMIZATION_LEVEL: "-O"
+      base:
+        INFOPLIST_FILE: "$(DERIVED_FILE_DIR)/DoIt-Info.plist"
+        PRODUCT_NAME: DoIt
+        PRODUCT_BUNDLE_IDENTIFIER: com.personal.doit
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # 공증을 하지 않으므로 Hardened Runtime은 끈 채로 둔다 (D-017)
+        ENABLE_HARDENED_RUNTIME: NO
+    scheme:
+      testTargets:
+        - DoItTests
+
+  DoItTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: DoItTests
+    dependencies:
+      - target: DoIt
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.personal.doit.tests
+        GENERATE_INFOPLIST_FILE: YES

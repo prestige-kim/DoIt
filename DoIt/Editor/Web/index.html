@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<!-- D-016: 네트워크 차단. 앱 번들 안 editor.css / editor.js만 허용, 그 밖의 모든 불러오기·접속 금지 -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'none'; font-src 'none'; media-src 'none'; connect-src 'none'; object-src 'none'; frame-src 'none'; worker-src 'none'; manifest-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<!-- CSS를 읽기 전부터 시스템 밝기 모드를 따르게 (다크 모드에서 첫 순간 흰 바탕 방지) -->
+<meta name="color-scheme" content="light dark">
+<title>DoIt 편집기</title>
+<link rel="stylesheet" href="editor.css">
+<script src="editor.js" defer></script>
+</head>
+<body>
+<header class="toolbar">
+  <label class="search">
+    <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"></circle><line x1="10.4" y1="10.4" x2="14" y2="14"></line></svg>
+    <input id="search" type="search" placeholder="제목 검색" autocomplete="off" spellcheck="false">
+  </label>
+  <div class="segmented" role="group" aria-label="정렬">
+    <button type="button" id="sort-due" class="on">마감일순</button>
+    <button type="button" id="sort-added">추가순</button>
+  </div>
+</header>
+
+<main id="content">
+  <section id="lms-section" class="section lms" hidden>
+    <button type="button" id="lms-toggle" class="section-head">
+      <svg class="chevron" viewBox="0 0 10 10" aria-hidden="true"><polyline points="2,3.5 5,6.5 8,3.5"></polyline></svg>
+      <span class="section-title">LMS 과제</span>
+      <span id="lms-count" class="badge"></span>
+      <span class="section-note">보기·체크만 할 수 있어요</span>
+    </button>
+    <ul id="lms-list" class="rows"></ul>
+  </section>
+
+  <section id="todo-section" class="section todo">
+    <div class="section-head static">
+      <span class="section-title">내 할 일</span>
+      <span id="todo-count" class="badge"></span>
+    </div>
+    <ul id="todo-list" class="rows"></ul>
+  </section>
+
+  <p id="empty" class="empty" hidden></p>
+</main>
+
+<footer id="bulkbar" class="bulkbar" hidden>
+  <span id="bulk-count" class="bulk-count"></span>
+  <span class="spacer"></span>
+  <button type="button" id="bulk-done">완료</button>
+  <button type="button" id="bulk-undone">미완료</button>
+  <button type="button" id="bulk-delete" class="danger">삭제</button>
+  <button type="button" id="bulk-clear" class="plain">선택 해제</button>
+</footer>
+</body>
+</html>

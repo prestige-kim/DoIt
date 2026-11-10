@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <meta name="description" content="노치에서 할 일과 LMS 과제를 확인하는 Mac 앱, DoIt.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
+  <title>DoIt — Mac용 할 일 앱</title>
+  <link rel="icon" type="image/svg+xml" href="./assets/mark.svg">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+<a class="skip-link" href="#main">본문으로 건너뛰기</a>
+<svg class="symbol-library" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="16" rx="3"/><path d="M8 3v4m8-4v4M4 11h16m-11 4h.01m5 0h.01m-5 3h.01"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14 5 5 5m-13 8 2-6L18 2l4 4L12 16l-6 2Z"/><path d="M12 4H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="m9 3 6 0 1 3 3 1 2 5-2 5-3 1-1 3H9l-1-3-3-1-2-5 2-5 3-1Z"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M6 9a6 6 0 0 1 12 0v5l2 3H4l2-3Zm4 11h4"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></symbol>
+  <symbol id="i-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M10 6h11M10 12h11M10 18h7m-14-12h.1m-.1 6h.1m-.1 6h.1"/></symbol>
+</defs></svg>
+<header class="site-header">
+  <a class="brand" href="#top" aria-label="DoIt 첫 화면"><img src="./assets/mark.svg" width="34" height="34" alt=""><span>DoIt</span></a>
+  <nav aria-label="주 메뉴"><a href="#experience">체험</a><a class="nav-cta" href="#install">설치 안내</a></nav>
+</header>
+<main id="main">
+  <section class="hero" id="top" aria-labelledby="hero-title">
+    <h1 id="hero-title">할 일과 과제,<br class="small-break"> DoIt에서</h1>
+    <p class="hero-copy">Mac용 할 일 앱 DoIt</p>
+    <div class="hero-actions"><button class="button primary js-only" data-open-notch>체험하기</button><a class="text-link" href="#install">설치 안내 <span aria-hidden="true">›</span></a></div>
+
+  </section>
+
+  <section class="focus-intro content-width" aria-labelledby="focus-title">
+    <h2 id="focus-title"><span>화면은 그대로,</span><span>할 일은 바로</span></h2>
+    <p><span>작업 도중 할 일을 추가하기 위해 화면을 넘기는 대신,</span><span>어느 화면에서든 노치로 마우스만 옮기세요.</span></p>
+  </section>
+
+  <section class="story" id="experience" data-scene="1" aria-label="DoIt 가상 제품 체험">
+    <div class="product-stage">
+      <p class="feature-caption js-only" id="feature-caption"><span>할 일과 과제를 함께</span></p>
+      <div class="product-frame">
+        <div class="display" id="product-display">
+          <div class="desktop-surface" id="desktop-surface">
+          <div class="desktop-menubar" aria-hidden="true"><span class="desktop-brand"><b>DoIt</b><i></i><i></i><i></i></span><time id="desktop-date" class="menu-clock">11월 9일 (월)</time></div>
+          <button class="notch-toggle js-only" id="notch-toggle" aria-expanded="false" aria-controls="notch-panel" aria-label="노치 펼치기"><span class="camera" aria-hidden="true"></span></button>
+          <div class="notch-panel" id="notch-panel" aria-label="예시 할 일 패널">
+            <div class="panel-heading"><strong>DoIt <time id="panel-date">11/9(월)</time></strong><div class="panel-tools"><button class="icon-button js-only" id="calendar-toggle" aria-label="달력 보기" aria-pressed="false"><svg><use href="#i-calendar"/></svg></button><button class="icon-button js-only" id="editor-toggle" aria-label="전체 편집기 미리보기"><svg><use href="#i-edit"/></svg></button><a class="icon-button" href="#setup" aria-label="LMS 연결 방법 보기"><svg><use href="#i-settings"/></svg></a></div></div>
+            <div class="list-view" id="list-view">
+              <div class="demo-input" aria-label="입력창 예시, 실제 입력은 받지 않음"><span>＋</span>할 일 추가… <small>오늘⌄</small></div>
+              <div class="list-heading"><strong><span class="chevron">⌄</span>LMS 과제 <b>3</b></strong><span>2주</span></div>
+              <div class="tasks lms-tasks">
+                <div class="task" data-task="lms-a"><button class="check js-only" data-check="lms-a" aria-label="예시 과제 A 완료" aria-pressed="false"><svg><use href="#i-check"/></svg></button><span class="static-ring no-js-only"></span><div class="task-copy"><span class="task-title">예시 과제 A</span><span class="course">예시 과목 A</span></div><span class="due">D-Day<small>11/9</small></span></div>
+                <div class="task" data-task="lms-b"><button class="check js-only" data-check="lms-b" aria-label="예시 과제 B 완료" aria-pressed="false"><svg><use href="#i-check"/></svg></button><span class="static-ring no-js-only"></span><div class="task-copy"><span class="task-title">예시 과제 B</span><span class="course">예시 과목 B</span></div><span class="due">D-2<small>11/11</small></span></div>
+                <div class="task overdue" data-task="lms-c"><button class="check js-only" data-check="lms-c" aria-label="예시 과제 C 완료" aria-pressed="false"><svg><use href="#i-check"/></svg></button><span class="static-ring no-js-only"></span><div class="task-copy"><span class="task-title">예시 과제 C</span><span class="course">예시 과목 C</span></div><span class="due">D+1<small>11/8</small></span></div>
+              </div>
+              <div class="list-divider"></div>
+              <div class="list-heading personal-heading"><strong>내 할 일 <b>2</b></strong><span id="todo-progress">0개 완료</span></div>
+              <div class="tasks personal-tasks"><div class="task" data-task="todo-a"><button class="check js-only" data-check="todo-a" aria-label="팀 발표 준비 완료" aria-pressed="false"><svg><use href="#i-check"/></svg></button><span class="static-ring no-js-only"></span><span class="task-title">팀 발표 준비</span><span class="due">D-Day<small>11/9</small></span></div><div class="task" data-task="todo-b"><button class="check js-only" data-check="todo-b" aria-label="읽을 자료 정리 완료" aria-pressed="false"><svg><use href="#i-check"/></svg></button><span class="static-ring no-js-only"></span><span class="task-title">읽을 자료 정리</span><span class="due">D-1<small>11/10</small></span></div></div>
+            </div>
+            <div class="calendar-view" id="calendar-view" hidden><div class="calendar-title"><strong id="calendar-month">2026년 11월</strong><span>〈 <span class="today-chip">오늘</span> 〉</span></div><div class="weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div><div class="calendar-grid" id="calendar-grid" aria-label="2026년 11월 예시 달력"></div><div class="calendar-legend"><span><i></i>내 할 일</span><span><i></i>LMS 과제</span><span>지난 날짜는 보기만 가능</span></div><div class="selected-day"><strong id="selected-day-label">11월 9일 · 오늘</strong><div><i class="blue-dot"></i>예시 과제 A <span>예시 과목 A</span></div><div><i class="green-dot"></i>팀 발표 준비</div></div></div>
+          </div>
+          <div class="demo-alert" id="demo-alert" hidden><button class="alert-content" id="alert-content"><span class="alert-dot"></span><strong id="alert-count">오늘 마감 2개</strong><span id="alert-titles">예시 과제 A 외 1개</span></button><button class="alert-close" id="alert-close" aria-label="알림 예시 닫기"><svg><use href="#i-close"/></svg></button></div>
+          <section class="editor-window" id="editor-window" aria-label="전체 편집기 예시" hidden><div class="window-top"><i></i><i></i><i></i><span>전체 편집기</span><button id="editor-close" class="icon-button js-only" aria-label="편집기 미리보기 닫기"><svg><use href="#i-close"/></svg></button></div><div class="editor-toolbar"><span>⌕ 제목 검색</span><strong>마감일순</strong><span>추가순</span></div><div class="editor-body"><h3>LMS 과제 <small>보기·체크만 가능</small></h3><div class="editor-row"><span class="blue-dot"></span><strong>예시 과제 A</strong><span class="course">예시 과목 A</span><span data-demo-offset="0">11/9 · D-Day</span></div><div class="editor-row"><span class="blue-dot"></span><strong>예시 과제 B</strong><span class="course">예시 과목 B</span><span data-demo-offset="2">11/11 · D-2</span></div><h3>내 할 일</h3><div class="editor-row"><span class="green-dot"></span><strong>팀 발표 준비</strong><span data-demo-offset="0">11/9 · D-Day</span></div><div class="editor-row"><span class="green-dot"></span><strong>읽을 자료 정리</strong><span data-demo-offset="1">11/10 · D-1</span></div><p>내 할 일은 제목·날짜 수정과 일괄 처리까지.<br> LMS 과제의 제목·마감일은 바꾸지 않습니다.</p></div></section>
+          </div>
+        </div>
+        <div class="frame-chin" aria-hidden="true"><span></span></div>
+      </div>
+      <div class="scene-controls js-only"><div class="scene-buttons" role="group" aria-label="제품 시연 장면"><button data-scene="0" aria-pressed="false">노치</button><button data-scene="1" aria-pressed="true">목록</button><button data-scene="2" aria-pressed="false">달력</button><button data-scene="3" aria-pressed="false">편집기</button></div><div class="extra-controls"><button id="show-alert"><svg><use href="#i-bell"/></svg>알림</button><button id="expand-demo" class="expand-button" aria-pressed="false" aria-controls="product-display">화면 확대</button><button id="reset-demo">초기화</button></div></div>
+      <div class="story-footer js-only"><button id="previous-scene" aria-label="이전 장면">‹</button><button id="next-scene" aria-label="다음 장면">›</button></div>
+    </div>
+    <noscript><p class="noscript-note">예시 일정입니다. JavaScript를 켜면 날짜와 시간이 현재 기기에 맞춰지고 노치·완료 체크·달력·알림을 체험할 수 있습니다.</p></noscript>
+    <p class="sr-only" id="demo-status" role="status" aria-live="polite"></p>
+  </section>
+
+  <section class="install-section" id="install" aria-labelledby="install-title">
+    <div class="content-width">
+      <div class="install-heading"><h2 id="install-title">설치</h2><div class="release-state"><p id="release-message">공개 준비 중</p><a class="text-link" id="preview-cta" href="#experience">체험하기 <span aria-hidden="true">›</span></a><a class="button primary" id="download-link" hidden>Mac용 다운로드</a></div></div>
+      <ol class="install-steps">
+        <li><div class="install-drawing archive-drawing" aria-hidden="true"><div class="zip-icon"><span>ZIP</span><i></i></div></div><h3>압축 해제</h3><p>배포 zip의 압축을 풉니다.</p></li>
+        <li><div class="install-drawing folder-drawing" aria-hidden="true"><img src="./assets/mark.svg" alt="" width="54" height="54"><span>→</span><div class="folder-icon"><i>앱</i></div></div><h3>응용 프로그램으로 이동</h3><p>DoIt.app을 옮깁니다.</p></li>
+        <li><div class="install-drawing launch-drawing" aria-hidden="true"><span class="launch-notch"><i></i><i></i><i></i></span><span class="launch-check">✓</span></div><h3>실행</h3><p>노치에 마우스를 올립니다.</p></li>
+      </ol>
+      <p class="compatibility">Mac 전용 · macOS 14 이상</p>
+      <details class="gatekeeper-note"><summary>실행이 차단될 때<span>＋</span></summary><p>‘완료’를 누른 뒤 시스템 설정 → 개인정보 보호 및 보안 → ‘그래도 열기’를 선택하고 관리자 암호를 입력하세요. 기존 환경에서는 암호 1번, 첫 실행에 약 30초가 걸렸습니다. macOS 버전·보안 설정에 따라 순서와 횟수는 달라집니다. 인증서나 개발자 키를 가져오거나 터미널을 사용할 필요는 없습니다.</p></details>
+    </div>
+  </section>
+  <section class="guide-section content-width" id="privacy" aria-labelledby="guide-title">
+    <h2 id="guide-title">사용 안내</h2>
+    <details id="setup">
+      <summary>LMS 연결<span>＋</span></summary>
+      <div class="detail-body lms-guide">
+        <div class="lms-guide-heading">
+          <h3>과제도, 함께.</h3>
+          <p>LMS 캘린더의 ‘캘린더 피드’에서 주소를 복사하세요.<br>DoIt에 연결하면 과제와 마감일을 함께 볼 수 있습니다.</p>
+        </div>
+        <ol class="lms-steps">
+          <li>
+            <div class="lms-step-copy"><span class="lms-step-number" aria-hidden="true">1</span><h4>피드 주소 저장</h4><p>DoIt 설정 → LMS 연동에서<br>주소를 붙여넣고 ‘저장’을 누르세요.</p></div>
+            <a class="lms-screen" href="./assets/lms-setup/save-feed.png" target="_blank" rel="noopener" aria-label="피드 주소 저장 화면 크게 보기">
+              <img src="./assets/lms-setup/save-feed.png" width="984" height="430" loading="lazy" alt="실제 DoIt 설정의 LMS 연동 화면. 비어 있는 피드 주소 입력란과 저장 버튼이 있습니다.">
+              <span>이미지 크게 보기 <span aria-hidden="true">↗</span></span>
+            </a>
+          </li>
+          <li>
+            <div class="lms-step-copy"><span class="lms-step-number" aria-hidden="true">2</span><h4>연동 켜기</h4><p>‘LMS 연동 켜기’를 켜세요.<br>가져올 기간도 정할 수 있습니다.</p></div>
+            <a class="lms-screen" href="./assets/lms-setup/enable-lms.png" target="_blank" rel="noopener" aria-label="LMS 연동 켜기 화면 크게 보기">
+              <img src="./assets/lms-setup/enable-lms.png" width="984" height="320" loading="lazy" alt="실제 DoIt 설정의 LMS 연동 스위치가 오른쪽으로 켜진 화면. 피드 주소 대신 이 맥에만 저장됨 표시가 보입니다.">
+              <span>이미지 크게 보기 <span aria-hidden="true">↗</span></span>
+            </a>
+          </li>
+        </ol>
+        <p class="lms-screen-note">DoIt 설정 화면입니다. 개인 피드 주소는 포함하지 않았습니다. 웹에서는 주소를 입력받지 않습니다.</p>
+        <div class="lms-optional"><h4>LMS 없이도 사용할 수 있어요.</h4><p>연동하지 않아도 할 일·달력·마감 알림을 사용할 수 있습니다.<br>피드를 추가하지 않으면 패널에 LMS 칸이 나타나지 않습니다.</p></div>
+        <div class="lms-safety"><p>피드 주소는 <strong>DoIt 앱 설정 창에만 직접</strong> 붙여넣으세요. 비밀번호처럼 보관하고 스크린샷·터미널·대화에 노출하지 마세요. 노출했다면 LMS에서 재발급하세요.</p><p>한동대 LMS 기준이며 다른 학교는 미검증입니다. 학교 공식 앱이 아닙니다. <strong>LMS 원본이 기준이며 DoIt은 보조 도구입니다.</strong> 중요한 마감은 LMS에서 확인하세요.</p></div>
+      </div>
+    </details>
+    <details><summary>개인정보<span>＋</span></summary><div class="detail-body"><p>개발자는 사용자 데이터를 수집하거나 전송받지 않습니다. 할 일·과제·체크 상태·기록은 맥 안에 저장됩니다.</p><p>LMS에는 피드 GET 요청만 보냅니다. 할 일과 체크 상태를 보내거나 강의자료·게시글·첨부파일에 접근하거나 화면을 크롤링하지 않습니다. LMS 데이터를 AI 서비스에 보내지 않습니다.</p><p>피드 주소는 본인 계정 전용 파일에 저장합니다(파일 권한 600·폴더 700, Time Machine 백업 제외). 같은 계정의 다른 프로그램까지 차단하는 저장소는 아닙니다.</p><p>업데이트 확인·다운로드는 GitHub와 통신하며 IP 등 일반 HTTP 정보가 전달될 수 있습니다. 이 웹사이트에는 입력 수집·분석 도구가 없습니다.</p></div></details>
+    <details><summary>알림과 업데이트<span>＋</span></summary><div class="detail-body"><p>노치 알림은 마감 당일 오전 9시에 모아서 표시합니다. 앱 종료 중 macOS 알림에는 알림 권한이 필요합니다. 기록은 자동으로 삭제하지 않습니다.</p><p>업데이트는 자동으로 확인하고 설치는 사용자가 선택합니다. 로컬 업데이트에서 인증 창 0번을 확인했으며 다른 맥이나 실제 배포 경로의 결과는 보장하지 않습니다.</p></div></details>
+    <details><summary>지원 환경<span>＋</span></summary><div class="detail-body"><p>macOS 14 이상. Apple Silicon 실사용 확인. Intel은 universal 빌드 확인, 실사용 미확인입니다. 모바일에서는 웹 체험만 가능하며 앱은 Mac 전용입니다.</p></div></details>
+  </section>
+</main>
+<footer class="site-footer content-width"><a class="brand" href="#top">DoIt</a><div><a href="./legal.html#license">MIT 라이선스</a><a href="./legal.html#notices">외부 코드 고지</a><span>문제 신고 · 준비 중</span></div><small>© 2026 prestige-kim</small></footer>
+</body>
+</html>

@@ -1,0 +1,46 @@
+name: DoIt 소개 페이지 (수동 · 기본 차단)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: vars.DOIT_PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    steps:
+      - uses: actions/checkout@v6
+      - name: 공개 페이지 범위 확인
+        shell: bash
+        run: |
+          test -f site/index.html
+          test -f site/legal.html
+          if find site -type l -print -quit | grep -q .; then exit 1; fi
+          if find site -type f \( -name '*.zip' -o -name '*manifest*' -o -name '*appcast*' -o -name '*.p12' -o -name '*.pem' -o -name '*.ics' \) -print -quit | grep -q .; then exit 1; fi
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+  deploy:
+    if: vars.DOIT_PAGES_ENABLED == 'true'
+    needs: prepare
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: 수동 승인 후 페이지 배포
+        id: deployment
+        uses: actions/deploy-pages@v4

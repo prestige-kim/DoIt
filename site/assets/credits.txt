@@ -1,0 +1,16 @@
+랜딩 체험 배경과 메뉴바
+DoIt에서 직접 작성한 CSS 그라데이션과 텍스트·점 도형입니다. MIT 라이선스.
+
+mark.svg
+DoIt에서 직접 작성한 벡터 자산. MIT 라이선스.
+
+readme/notch-list.png · readme/calendar.png · readme/editor.png
+DoIt 소개용 HTML/CSS 데모를 로컬 브라우저에서 렌더링한 이미지입니다.
+실제 앱 실행 캡처가 아니며, 예시 할 일·과목을 사용했습니다.
+Apple 항공 배경과 메뉴바 이미지를 제외한 중립 배경으로 제작했습니다.
+DoIt에서 작성한 데모 구성은 MIT 라이선스입니다.
+
+lms-setup/save-feed.png · lms-setup/enable-lms.png
+DoIt의 실제 SwiftUI 설정 화면을 임시 실행 환경에서 다크 모드로 렌더링한 이미지입니다.
+임시 저장소와 예시 상태만 사용했으며 실제 LMS 주소·계정·동기화 데이터는 포함하지 않습니다.
+DoIt에서 작성한 화면 구성은 MIT 라이선스입니다. macOS 시스템 UI·심볼의 권리는 별도이며 이 고지로 해당 요소의 권리를 허여하지 않습니다.
