@@ -60,7 +60,9 @@ svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width:
 .product-stage { position: relative; }
 .product-frame { width: 100%; margin: auto; }
 
-.display { width: 100%; min-height: 520px; aspect-ratio: 1.72; position: relative; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 17% 20%, #7d8587 0%, transparent 56%), radial-gradient(ellipse at 85% 80%, #424e50 0%, transparent 60%), linear-gradient(135deg, #343c3e, #1d2426); border: 7px solid #242426; border-bottom: 0; border-radius: 23px 23px 0 0; }
+.display { width: 100%; position: relative; overflow: hidden; isolation: isolate; background: radial-gradient(ellipse at 17% 20%, #7d8587 0%, transparent 56%), radial-gradient(ellipse at 85% 80%, #424e50 0%, transparent 60%), linear-gradient(135deg, #343c3e, #1d2426); border: 7px solid #242426; border-bottom: 0; border-radius: 23px 23px 0 0; }
+/* Size the screen from its content width, independently of the bezel and zoom. */
+.display::before { content: ''; display: block; aspect-ratio: 900 / 534; }
 
 
 .scene-controls { justify-content: center; align-items: center; gap: 30px; margin-top: 26px; }
@@ -576,7 +578,7 @@ details[open] summary > span { transform: rotate(45deg); }
   .hero h1 { font-size: 50px; }
   .hero-copy { font-size: 18px; }
   .story { width: calc(100% - 40px); margin-bottom: 60px; }
-  .display { height: 535px; min-height: 0; aspect-ratio: auto; border-width: 5px; }
+  .display { border-width: 5px; }
   .content-width, .site-header { width: calc(100% - 48px); }
   .editor-window { top: 20%; width: 92%; }
   .install-steps { gap: 20px; }
@@ -598,7 +600,7 @@ details[open] summary > span { transform: rotate(45deg); }
   .button { font-size: 14px; padding: 9px 20px; }
   .text-link { font-size: 14px; }
   .story { width: calc(100% - 28px); margin-bottom: 50px; }
-  .display { height: 525px; border-radius: 16px 16px 0 0; background-position: 65% center; }
+  .display { border-radius: 16px 16px 0 0; background-position: 65% center; }
   .desktop-menubar { padding-inline: 9px; font-size: 8px; }
   .desktop-app > span, .wifi-bars { display: none; }
   .desktop-system { gap: 6px; }
@@ -662,12 +664,14 @@ details[open] summary > span { transform: rotate(45deg); }
 .product-frame { position: relative; width: 100%; }
 .frame-chin { height: 16px; border-radius: 0 0 12px 12px; background: linear-gradient(90deg, #afb1b4, #dedfe0 45%, #b6b8bb); }
 .frame-chin span { display: block; width: 70px; height: 6px; margin: auto; background: #979a9e; border-radius: 0 0 5px 5px; }
-.desktop-surface { position: relative; width: 900px; height: 534px; transform-origin: top left; }
+.desktop-surface { position: absolute; top: 0; left: 0; width: 900px; height: 534px; transform-origin: top left; }
 .js .expand-button { display: none; }
 @media (max-width: 900px) { .js .expand-button { display: flex; } }
-.product-frame.is-expanded .display { height: 540px; aspect-ratio: auto; }
-.product-frame.is-expanded .desktop-surface { width: 100%; height: 100%; transform: none !important; }
-html:not(.js) .desktop-surface { width: 100%; height: 100%; }
+.product-frame.is-expanded .display { overflow-x: hidden; overflow-y: auto; }
+/* Zoom the demo inside the landscape screen; scroll to see its lower content. */
+.product-frame.is-expanded .desktop-surface { width: 100%; height: 534px; transform: none !important; }
+html:not(.js) .display { overflow-x: hidden; overflow-y: auto; }
+html:not(.js) .desktop-surface { width: 100%; height: 534px; }
 
 /* 자체 제작한 메뉴바와 현재 시각. */
 .desktop-menubar { position: relative; height: 20.20408px; padding: 0; overflow: hidden; color: #fff; background: rgba(20, 27, 25, .72); text-shadow: none; }
