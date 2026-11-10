@@ -84,6 +84,18 @@ h2 { font-size: 44px; font-weight: 600; line-height: 1.2; letter-spacing: -.04em
 .install-steps h3 { font-size: 18px; font-weight: 600; letter-spacing: -.025em; margin: 15px 0 8px; }
 .install-steps p { font-size: 14px; color: var(--muted); margin: 0; }
 .compatibility { font-size: 12px; color: var(--muted); margin: 0 0 24px; }
+.first-launch { padding: 30px; border: 1px solid var(--line); border-radius: 24px; background: var(--bg); }
+.first-launch-intro > span { color: var(--muted); font-size: 12px; font-weight: 600; }
+.first-launch-intro h3 { margin: 5px 0 8px; font-size: 25px; line-height: 1.25; letter-spacing: -.035em; }
+.first-launch-content { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 34px; align-items: center; margin: 26px 0 24px; }
+.first-launch-warning { display: block; width: min(100%, 300px); height: auto; margin: 0 auto; border-radius: 18px; }
+.first-launch-steps h4 { margin: 0 0 10px; font-size: 17px; }
+.first-launch-steps ol { margin: 0; padding-left: 22px; color: var(--ink); font-size: 14px; line-height: 1.75; }
+.first-launch-steps li + li { margin-top: 10px; }
+@media (max-width: 650px) {
+  .first-launch { padding: 22px; border-radius: 20px; }
+  .first-launch-content { grid-template-columns: 1fr; gap: 22px; }
+}
 details { border-top: 1px solid var(--line); }
 summary { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 22px 0; cursor: pointer; list-style: none; font-size: 16px; font-weight: 500; }
 summary::-webkit-details-marker { display: none; }
@@ -699,6 +711,25 @@ html:not(.js) .desktop-surface { width: 100%; height: 100%; }
 .lms-guide-heading { margin: 4px 0 28px; }
 .lms-guide-heading h3 { margin: 0 0 12px; font-size: clamp(30px, 3.6vw, 42px); line-height: 1.15; font-weight: 600; letter-spacing: -.04em; color: var(--ink); }
 .lms-guide-heading p { font-size: 17px; line-height: 1.7; }
+.lms-flow-title { margin: 0 0 18px; color: var(--ink); font-size: 21px; font-weight: 600; letter-spacing: -.025em; }
+.lms-feed-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding: 0; margin: 0; list-style: none; counter-reset: feed-step; }
+.lms-feed-steps > li { min-width: 0; counter-increment: feed-step; }
+.lms-feed-steps > li::before { content: '0' counter(feed-step); display: block; margin-bottom: 10px; color: var(--muted); font-size: 13px; font-weight: 600; }
+.lms-feed-steps h5 { margin: 14px 0 6px; color: var(--ink); font-size: 17px; line-height: 1.3; font-weight: 600; letter-spacing: -.025em; }
+.lms-feed-steps p { margin: 0; font-size: 14px; line-height: 1.6; }
+.lms-feed-visual { height: 180px; display: flex; align-items: center; justify-content: center; overflow: hidden; border-radius: 18px; background: var(--section); }
+.lms-feed-visual img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; border-radius: 10px; }
+.lms-calendar-menu { width: 112px; padding: 10px 0; border-radius: 12px; background: #354954; color: #fff; text-align: center; font-size: 12px; box-shadow: 0 8px 24px #0002; }
+.lms-calendar-menu span { display: block; padding: 6px 0; opacity: .8; }
+.lms-calendar-menu strong { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 8px; color: #0876b6; background: #fff; font-size: 13px; font-weight: 600; }
+.lms-calendar-menu svg { width: 21px; height: 21px; }
+.lms-feed-dialog { width: min(88%, 260px); overflow: hidden; border-radius: 12px; background: #fff; color: #273a4c; box-shadow: 0 8px 24px #0002; }
+.lms-feed-dialog > strong { display: block; padding: 13px 15px; border-bottom: 1px solid #d7dce0; font-size: 14px; font-weight: 600; }
+.lms-feed-dialog > span { display: block; padding: 12px 15px 6px; font-size: 11px; }
+.lms-feed-dialog > div { display: flex; justify-content: space-between; gap: 8px; margin: 4px 15px 16px; padding: 7px 9px; border: 1px solid #ccd3d8; border-radius: 6px; color: #63717b; font-size: 11px; }
+.lms-feed-dialog b { color: #0876b6; white-space: nowrap; }
+.lms-guide .lms-feed-example { margin: 14px 0 38px; font-size: 12px; }
+.lms-connect-title { margin-top: 0; }
 .lms-steps { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; padding: 0; margin: 0; list-style: none; }
 .lms-steps > li { min-width: 0; padding: 28px 24px 20px; border-radius: 22px; background: var(--section); }
 .lms-step-number { display: block; margin-bottom: 14px; color: var(--muted); font-size: 14px; font-weight: 600; }
@@ -715,6 +746,8 @@ html:not(.js) .desktop-surface { width: 100%; height: 100%; }
 .lms-safety { margin-top: 24px; font-size: 12px; }
 .lms-safety p { max-width: 800px; }
 @media (max-width: 650px) {
+  .lms-feed-steps { grid-template-columns: 1fr; gap: 26px; }
+  .lms-feed-visual { height: 164px; }
   .lms-steps { grid-template-columns: 1fr; gap: 18px; }
   .lms-steps > li { padding: 24px 20px 18px; }
   .lms-screen { min-height: 0; margin-top: 24px; }

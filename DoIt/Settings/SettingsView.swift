@@ -503,12 +503,17 @@ struct StorageSettingsPane: View {
 
 struct AlertSettingsPane: View {
     let scheduler: NotchAlertScheduler
-    let center: LocalNotificationCenter?
 
     @State private var testMessage: String?
-    @State private var permission: AlertPermission?
+    @State private var permissions: NotificationPermissionModel
+
+    init(scheduler: NotchAlertScheduler, center: LocalNotificationCenter?) {
+        self.scheduler = scheduler
+        _permissions = State(initialValue: NotificationPermissionModel(center: center))
+    }
 
     private var settings: AlertSettings { scheduler.settings }
+    private var permission: AlertPermission? { permissions.permission }
 
     var body: some View {
         Form {
@@ -545,9 +550,26 @@ struct AlertSettingsPane: View {
                     RowLabel(title: "macOS 알림 권한",
                              caption: "DoIt이 종료돼 있을 때만 macOS 기본 알림으로 대신 알려요. 실행 중에는 노치 알림만 써요.")
                 }
-                if permission == .denied {
+                if permission == .notDetermined {
                     HStack {
-                        Text("앱이 종료돼 있을 때는 알림이 오지 않아요 (노치 알림은 그대로 동작해요).")
+                        Text("앱이 종료된 동안의 마감 알림을 받으려면 권한을 허용해 주세요. 노치 알림에는 이 권한이 필요하지 않아요.")
+                            .font(.caption).foregroundStyle(Palette.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
+                        Button(permissions.isRequesting ? "요청 중…" : "알림 권한 요청") {
+                            Task { await permissions.request() }
+                        }
+                        .disabled(permissions.isRequesting)
+                    }
+                }
+                if let message = permissions.requestMessage {
+                    Text(message).font(.caption).foregroundStyle(Palette.secondaryText)
+                }
+                if permission == .denied || permission == .provisional || permission == .unknown || permissions.requestMessage != nil {
+                    HStack {
+                        Text(permission == .denied
+                             ? "앱이 종료돼 있을 때는 알림이 오지 않아요 (노치 알림은 그대로 동작해요)."
+                             : "macOS 알림의 허용 여부와 표시 방식은 시스템 설정에서 확인해 주세요.")
                             .font(.caption)
                             .foregroundStyle(Palette.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
@@ -559,7 +581,10 @@ struct AlertSettingsPane: View {
         }
         .formStyle(.grouped)
         .scrollContentBackground(.hidden)  // 창 전체를 패널과 같은 바탕색으로
-        .onAppear { refreshPermission() }
+        .task { await permissions.refresh() }
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            Task { await permissions.refresh() }
+        }
     }
 
     private var permissionText: String {
@@ -567,6 +592,8 @@ struct AlertSettingsPane: View {
         case .authorized: return "허용됨"
         case .denied: return "거부됨"
         case .notDetermined: return "아직 묻지 않음"
+        case .provisional: return "조용한 알림만 허용됨"
+        case .unknown: return "시스템 설정 확인 필요"
         case nil: return "확인 중…"
         }
     }
@@ -575,12 +602,6 @@ struct AlertSettingsPane: View {
         switch scheduler.sendTest() {
         case .scheduled: testMessage = "3초 뒤에 노치 알림이 떠요"
         case .paused: testMessage = "일시 중지 중이라 보내지 않았어요"
-        }
-    }
-
-    private func refreshPermission() {
-        center?.permission { status in
-            DispatchQueue.main.async { permission = status }
         }
     }
 

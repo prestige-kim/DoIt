@@ -1,12 +1,23 @@
 import Foundation
 import UserNotifications
 import os
+import Observation
 
 private let fallbackLogger = Logger(subsystem: "com.personal.doit", category: "alert")
 
 /// macOS 알림 권한 상태 (설정 화면용)
-enum AlertPermission: Equatable {
-    case notDetermined, denied, authorized
+enum AlertPermission: Equatable, Sendable {
+    case notDetermined, denied, authorized, provisional, unknown
+
+    init(systemStatus: UNAuthorizationStatus) {
+        switch systemStatus {
+        case .notDetermined: self = .notDetermined
+        case .denied: self = .denied
+        case .authorized: self = .authorized
+        case .provisional: self = .provisional
+        @unknown default: self = .unknown
+        }
+    }
 }
 
 /// `UNUserNotificationCenter`에서 쓰는 것만 (테스트는 가짜로)
@@ -43,16 +54,56 @@ final class SystemNotificationCenter: LocalNotificationCenter {
 
     func permission(_ completion: @escaping (AlertPermission) -> Void) {
         center.getNotificationSettings { s in
-            switch s.authorizationStatus {
-            case .notDetermined: completion(.notDetermined)
-            case .denied: completion(.denied)
-            default: completion(.authorized)
-            }
+            completion(AlertPermission(systemStatus: s.authorizationStatus))
         }
     }
 
     func requestPermission(_ completion: @escaping (Bool) -> Void) {
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in completion(granted) }
+        center.requestAuthorization(options: [.alert, .sound]) { granted, error in
+            if error != nil { fallbackLogger.error("notification permission request failed") }
+            completion(granted)
+        }
+    }
+}
+
+/// 설정에서 사용자가 선택한 권한 요청. 기존 결정을 다시 묻거나 초기화하지 않는다.
+@MainActor
+@Observable
+final class NotificationPermissionModel {
+    private(set) var permission: AlertPermission?
+    private(set) var isRequesting = false
+    private(set) var requestMessage: String?
+    @ObservationIgnored private let center: LocalNotificationCenter?
+
+    init(center: LocalNotificationCenter?) { self.center = center }
+
+    private func currentPermission() async -> AlertPermission {
+        guard let center else { return .unknown }
+        return await withCheckedContinuation { continuation in
+            center.permission { continuation.resume(returning: $0) }
+        }
+    }
+
+    func refresh() async {
+        permission = await currentPermission()
+        if permission != .notDetermined { requestMessage = nil }
+    }
+
+    func request() async {
+        guard !isRequesting, let center else { return }
+        isRequesting = true
+        defer { isRequesting = false }
+        requestMessage = nil
+        let current = await currentPermission()
+        permission = current
+        guard current == .notDetermined else { return }
+        _ = await withCheckedContinuation { continuation in
+            center.requestPermission { continuation.resume(returning: $0) }
+        }
+        permission = await currentPermission()
+        if permission == .notDetermined {
+            requestMessage = "권한이 아직 결정되지 않았어요. 시스템 설정에서 상태를 확인해 주세요."
+        }
     }
 }
 

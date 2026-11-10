@@ -1,4 +1,5 @@
 import XCTest
+import UserNotifications
 @testable import DoIt
 
 /// T-005 노치 알림: 계획(순수), 스케줄러(가짜 타이머), 상태 머신 알림 전환, 종료 시 대신 예약(가짜 알림 센터)
@@ -405,6 +406,11 @@ final class NotificationTests: XCTestCase {
         var added: [(String, String, String, DateComponents)] = []
         var status: AlertPermission = .notDetermined
         var requested = 0
+        var requestResult = true
+        var statusAfterRequest: AlertPermission?
+        var delayRequest = false
+        var heldRequest: ((Bool) -> Void)?
+        var onRequest: (() -> Void)?
 
         func pendingIdentifiers(_ completion: @escaping ([String]) -> Void) { completion(pending) }
         func removePending(identifiers: [String]) { pending.removeAll { identifiers.contains($0) } }
@@ -415,7 +421,22 @@ final class NotificationTests: XCTestCase {
             completion(nil)
         }
         func permission(_ completion: @escaping (AlertPermission) -> Void) { completion(status) }
-        func requestPermission(_ completion: @escaping (Bool) -> Void) { requested += 1; completion(true) }
+        func requestPermission(_ completion: @escaping (Bool) -> Void) {
+            requested += 1
+            if delayRequest { heldRequest = completion }
+            else {
+                if let statusAfterRequest { status = statusAfterRequest }
+                completion(requestResult)
+            }
+            onRequest?()
+        }
+
+        func completeRequest() {
+            if let statusAfterRequest { status = statusAfterRequest }
+            let completion = heldRequest
+            heldRequest = nil
+            completion?(requestResult)
+        }
     }
 
     func testTerminateSchedulesPlanAndLaunchRemovesOnlyOurs() {
@@ -437,5 +458,94 @@ final class NotificationTests: XCTestCase {
         center.status = .notDetermined
         notifier.appLaunched()
         XCTAssertEqual(center.requested, 1, "미결정일 때만 1번 요청")
+    }
+
+    func testPermissionMappingDoesNotTreatUnknownAsAuthorized() throws {
+        XCTAssertEqual(AlertPermission(systemStatus: .notDetermined), .notDetermined)
+        XCTAssertEqual(AlertPermission(systemStatus: .denied), .denied)
+        XCTAssertEqual(AlertPermission(systemStatus: .authorized), .authorized)
+        XCTAssertEqual(AlertPermission(systemStatus: .provisional), .provisional)
+        let unknown = try XCTUnwrap(UNAuthorizationStatus(rawValue: 999))
+        XCTAssertEqual(AlertPermission(systemStatus: unknown), .unknown)
+    }
+
+    func testLaunchDoesNotRequestExistingPermissionDecisions() {
+        for status: AlertPermission in [.denied, .authorized, .provisional, .unknown] {
+            let center = FakeCenter(); center.status = status
+            FallbackNotifier(center: center).appLaunched()
+            XCTAssertEqual(center.requested, 0)
+            XCTAssertEqual(center.status, status)
+        }
+    }
+
+    func testSettingsRequestRespectsExistingPermissionDecisions() async {
+        for status: AlertPermission in [.denied, .authorized, .provisional, .unknown] {
+            let center = FakeCenter(); center.status = status
+            let model = NotificationPermissionModel(center: center)
+            await model.refresh()
+            await model.request()
+            XCTAssertEqual(model.permission, status)
+            XCTAssertEqual(center.requested, 0)
+            XCTAssertFalse(model.isRequesting)
+        }
+    }
+
+    func testSettingsRequestReadsGrantedStatusAndDoesNotRepeat() async {
+        let center = FakeCenter(); center.statusAfterRequest = .authorized
+        let model = NotificationPermissionModel(center: center)
+        await model.request()
+        XCTAssertEqual(model.permission, .authorized)
+        XCTAssertEqual(center.requested, 1)
+        await model.request()
+        XCTAssertEqual(center.requested, 1)
+        XCTAssertNil(model.requestMessage)
+    }
+
+    func testSettingsRequestReadsDeniedStatusAndDoesNotRepeat() async {
+        let center = FakeCenter(); center.statusAfterRequest = .denied; center.requestResult = false
+        let model = NotificationPermissionModel(center: center)
+        await model.request()
+        XCTAssertEqual(model.permission, .denied)
+        await model.request()
+        XCTAssertEqual(center.requested, 1)
+    }
+
+    func testUndecidedRequestShowsMessageWithoutAutomaticRetry() async {
+        let center = FakeCenter(); center.requestResult = false
+        let model = NotificationPermissionModel(center: center)
+        await model.request()
+        XCTAssertEqual(model.permission, .notDetermined)
+        XCTAssertNotNil(model.requestMessage)
+        XCTAssertFalse(model.isRequesting)
+        XCTAssertEqual(center.requested, 1)
+        center.status = .authorized
+        await model.refresh()
+        XCTAssertEqual(model.permission, .authorized)
+        XCTAssertNil(model.requestMessage)
+        XCTAssertEqual(center.requested, 1)
+    }
+
+    func testConcurrentSettingsRequestsAreDeduplicated() async {
+        let center = FakeCenter(); center.delayRequest = true; center.statusAfterRequest = .authorized
+        let model = NotificationPermissionModel(center: center)
+        let started = expectation(description: "permission request started")
+        center.onRequest = { started.fulfill() }
+        let first = Task { await model.request() }
+        await fulfillment(of: [started], timeout: 1)
+        XCTAssertTrue(model.isRequesting)
+        await model.request()
+        XCTAssertEqual(center.requested, 1)
+        center.completeRequest()
+        await first.value
+        XCTAssertEqual(model.permission, .authorized)
+        XCTAssertFalse(model.isRequesting)
+    }
+
+    func testUnavailableCenterHasUnknownPermission() async {
+        let model = NotificationPermissionModel(center: nil)
+        await model.refresh()
+        await model.request()
+        XCTAssertEqual(model.permission, .unknown)
+        XCTAssertFalse(model.isRequesting)
     }
 }
