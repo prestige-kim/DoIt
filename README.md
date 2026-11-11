@@ -6,7 +6,7 @@
 
 **화면은 그대로, 할 일은 바로.** 노치에 마우스를 대면 할 일과 LMS 과제를 확인할 수 있는 Mac 앱입니다.
 
-**[소개·사용 안내 →](https://prestige-kim.github.io/DoIt/)** · **[1.0.1 다운로드 ↓](https://github.com/prestige-kim/DoIt/releases/download/v1.0.1-12/DoIt-1.0.1-12.zip)**
+**[소개·사용 안내 →](https://prestige-kim.github.io/DoIt/)** · **[1.0.2 다운로드 ↓](https://github.com/prestige-kim/DoIt/releases/download/v1.0.2-13/DoIt-1.0.2-13.zip)**
 
 macOS 14 이상 · 무료
 

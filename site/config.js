@@ -1,11 +1,11 @@
 // 공개 주소 확정·업로드 확인 후 이 파일 한 곳에서만 배포 정보를 바꿉니다.
 export const SITE_CONFIG = Object.freeze({
   releasePublished: true,
-  version: '1.0.1',
-  build: 12,
+  version: '1.0.2',
+  build: 13,
   owner: 'prestige-kim',
   repository: 'DoIt',
-  downloadURL: 'https://github.com/prestige-kim/DoIt/releases/download/v1.0.1-12/DoIt-1.0.1-12.zip',
+  downloadURL: 'https://github.com/prestige-kim/DoIt/releases/download/v1.0.2-13/DoIt-1.0.2-13.zip',
   minimumMacOS: '14',
   support: 'Apple Silicon 실사용 확인 · Intel 실사용 확인 중',
   issuesURL: 'https://github.com/prestige-kim/DoIt/issues',

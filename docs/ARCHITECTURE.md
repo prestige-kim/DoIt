@@ -225,12 +225,12 @@ DoIt/
 ## 8. 릴리스 도구 (T-012c 구현·로컬 검증 완료)
 - 깨끗한 main과 정식 업데이트 설정을 검사한 뒤 project.yml의 버전/빌드만 갱신하고 Release 빌드·포장·EdDSA 검증을 수행한다. 실패 시 자기 변경만 복구하며 사용자 파일·기존 산출물은 덮어쓰지 않는다. 커밋·태그·업로드·설치는 자동 실행하지 않는다.
 - 개인 키는 기존 개발자 키체인 account만 사용하고 앱 공개 키와 서명 키의 일치를 검증한다. zip 내부 앱의 버전·서명·구성, zip의 크기/해시/EdDSA, appcast 후보와 manifest의 일치를 확인한다.
-- 후보는 dist에 둔다. site/appcast.xml을 미리 수정하지 않으며 zip 업로드·검증 뒤 반영한다. 정식 공개 준비 미완/검증 구성은 계속 포장 거부. 정상 경로 시험은 임시 저장소로 제한한다.
+- 후보는 dist에 둔다. site/appcast.xml을 미리 수정하지 않으며 zip 업로드·검증 뒤 반영한다. 검증 구성은 배포 포장을 거부하고 실패 경로는 임시 저장소에서 시험한다.
 - 공개 운영 안내는 docs/RELEASING.md, 내보내기는 이 파일만 추가 허용하며 나머지 비공개 문서 제외 원칙을 유지한다.
 
 ## 9. 랜딩 사이트 (T-012d 로컬 구현·사용자 확인 완료)
 - site/에 정적 HTML/CSS/로컬 JS/SVG와 자체 자산만 둔다. 로컬 JS로 허구 제품 시연·스크롤 챕터·접근성 상태를 구현하는 것은 허용한다. 앱의 네트워크/타이머/저장 구조를 바꾸는 예외가 아니다.
 - 실제 LMS 연결·주소 입력·로그인·할 일 데이터 수집·영속 저장·외부 분석/API 없음. 디자인 생성 도구에 주는 입력은 공개 설명과 허구 자료만, 완성 사이트 런타임은 외부 AI에 접속하지 않는다.
 - 자연 스크롤·기능 버튼 시연, 긴 sticky/스크롤 자동 전환 없음. 유한 알림 timeout과 사용자 실시간 시계 요청에 한정한 보이는 무대의 분 경계 timeout 하나 재예약을 허용, 무대/탭 숨김 시 취소. 앱 폴링/타이머 예외로 확대하지 않음. 무한 rAF·scroll hijacking 금지, JS 없음/motion 감소/작은 화면 fallback 유지.
-- 저장소 prestige-kim/DoIt 및 Pages URL은 확정하되 releasePublished=false·다운로드 비활성 안내를 유지한다. 버전별 Releases 자산 URL은 릴리스 도구 이름 규칙과 일치시킨다. 임의 latest 자산을 가정하지 않는다. site에는 로컬 manifest·원본 SHA·실제 appcast 후보를 자동 복사하지 않는다.
-- Pages 워크플로는 site만 대상으로 수동 실행+기본 비활성 gate로 준비한다. 이번 작업은 코드 준비·로컬 검증뿐이며 push/Actions 실행/Pages 활성화 없음. 실제 게이트 개방은 사용자 발행 승인 뒤 별도 단계다.
+- 저장소 prestige-kim/DoIt 및 Pages URL은 공개됐다. `releasePublished=true`이고 버전별 Releases 자산 URL은 릴리스 도구 이름 규칙과 일치시킨다. 임의 latest 자산을 가정하지 않는다. site에는 로컬 manifest·원본 SHA를 복사하지 않는다. appcast 후보는 ZIP 원격 검증 뒤에만 반영한다.
+- Pages 워크플로는 site만 대상으로 수동 실행한다. 배포 gate는 공개 승인 후 켜졌으며, 게시 뒤 Actions 성공과 실제 HTTPS 응답을 확인한다.
