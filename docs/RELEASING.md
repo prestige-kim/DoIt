@@ -2,7 +2,7 @@
 
 릴리스 도구는 **로컬 후보 준비**까지만 합니다. 자동 커밋·태그·설치·업로드·게시를 하지 않으며 `site/appcast.xml`도 바꾸지 않습니다.
 
-정식 appcast는 `https://prestige-kim.github.io/DoIt/appcast.xml`이며 `DoItDistributionEnabled=true`입니다. 1.0.0과 1.0.1은 공개됐고, 1.0.2(13) ZIP은 먼저 게시·검증했습니다. appcast를 공개할 때는 ZIP 검증 뒤에 후보를 반영합니다. macOS 14 이상을 지원하지만 Intel의 실제 사용은 아직 확인하지 못했습니다.
+정식 appcast는 `https://prestige-kim.github.io/DoIt/appcast.xml`이며 `DoItDistributionEnabled=true`입니다. 1.0.0·1.0.1·1.0.2(13)가 공개됐습니다. 1.0.2는 ZIP을 먼저 게시·검증한 뒤 appcast에 추가했습니다. 다음 릴리스도 같은 순서를 따릅니다. macOS 14 이상을 지원하지만 Intel의 실제 사용은 아직 확인하지 못했습니다.
 
 ## 준비
 
