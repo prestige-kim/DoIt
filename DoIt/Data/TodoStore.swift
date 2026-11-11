@@ -56,7 +56,11 @@ final class TodoStore {
     /// 할 일 변경을 받을 추가 구독자 (T-006). `onTodosChanged`를 덮어쓰지 않고 여러 곳이 받을 수 있다
     @ObservationIgnored let todosChangedObservers = ChangeObservers()
 
-    var hasPendingSave: Bool { pendingSave != nil }
+    /// 실패 후에도 미저장 변경을 유지한다. 재시도는 사용자 동작·종료 시에만 한다.
+    private(set) var hasUnsavedChanges = false
+    private(set) var saveError: String?
+    var hasPendingSave: Bool { hasUnsavedChanges }
+
 
     // MARK: 날짜 변경 (이벤트 방식, 타이머 없음)
 
@@ -160,10 +164,12 @@ final class TodoStore {
         let removed = todos.filter { ids.contains($0.id) && $0.isDone }
         guard !removed.isEmpty else { return [] }
         let removedIDs = Set(removed.map(\.id))
-        todos.removeAll { removedIDs.contains($0.id) }
+        let next = todos.filter { !removedIDs.contains($0.id) }
+        guard persist(next) else { return [] }
+        todos = next
         pendingSave?.cancel()
         pendingSave = nil
-        saveNow()
+        hasUnsavedChanges = false
         return removed
     }
 
@@ -217,31 +223,44 @@ final class TodoStore {
 
     /// 변경 1번마다 이전 대기 작업을 취소하고 1번만 기다린다 (일회성 디바운스, ARCHITECTURE §5 예외).
     private func scheduleSave() {
+        hasUnsavedChanges = true
         pendingSave?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            MainActor.assumeIsolated { self?.flushPendingSave() }
+            MainActor.assumeIsolated { _ = self?.flushPendingSave() }
         }
         pendingSave = work
         DispatchQueue.main.asyncAfter(deadline: .now() + saveDelay, execute: work)
     }
 
     /// 대기 중인 저장이 있으면 지금 저장한다 (디바운스 만료 시, 앱 종료 시).
-    func flushPendingSave() {
-        guard let work = pendingSave else { return }
-        work.cancel()
+    @discardableResult
+    func flushPendingSave() -> Bool {
+        pendingSave?.cancel()
         pendingSave = nil
-        saveNow()
+        guard hasUnsavedChanges || saveError != nil else { return true }
+        return saveNow()
     }
 
-    /// 즉시 원자적으로 저장한다.
-    func saveNow() {
+    @discardableResult
+    func saveNow() -> Bool {
+        guard persist(todos) else { hasUnsavedChanges = true; return false }
+        pendingSave?.cancel()
+        pendingSave = nil
+        hasUnsavedChanges = false
+        return true
+    }
+
+    private func persist(_ value: [Todo]) -> Bool {
         do {
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-            let data = try Self.makeEncoder().encode(TodoFile(schemaVersion: Self.schemaVersion, todos: todos))
+            let data = try Self.makeEncoder().encode(TodoFile(schemaVersion: Self.schemaVersion, todos: value))
             try data.write(to: fileURL, options: .atomic)
-            storeLogger.debug("saved \(self.todos.count, privacy: .public) todos")
+            saveError = nil
+            return true
         } catch {
-            storeLogger.error("save failed: \(String(describing: error), privacy: .public)")
+            saveError = "할 일을 저장하지 못했어요. 앱을 종료하지 말고 저장을 다시 시도해 주세요."
+            storeLogger.error("save failed: \(String(describing: type(of: error)), privacy: .public)")
+            return false
         }
     }
 

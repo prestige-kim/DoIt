@@ -59,6 +59,13 @@ final class LmsStore {
     private(set) var record: LmsSyncRecord
     /// 지금 요청 중인지
     var isSyncing = false
+    private(set) var saveError: String?
+    private(set) var isDisconnectPending: Bool
+    @ObservationIgnored private var failedWrites: Set<String> = []
+    @ObservationIgnored private var unpersistedPast: [LmsItem] = []
+    @ObservationIgnored private var pendingReplacement: (items: [LmsItem], today: LocalDate)?
+    var hasPendingSave: Bool { pendingReplacement != nil || !failedWrites.isEmpty }
+
     /// 상대 시각("n시간 전")·버튼 활성 판단 기준 시각. 패널 펼침·설정 열기·일회성 지연 때 갱신 (주기 타이머 없음)
     private(set) var displayNow: Date
 
@@ -84,6 +91,7 @@ final class LmsStore {
         static let masked = "lmsMaskedFeedURL"
         static let record = "lmsSyncRecord"
         static let historySeeded = "lmsHistorySeeded"
+        static let disconnectPending = "lmsDisconnectPending"
     }
 
     /// T-009 이후 피드 전체(200)를 한 번이라도 받아 지난 과제를 기록에 채웠는지.
@@ -100,6 +108,7 @@ final class LmsStore {
         stateURL = directory.appendingPathComponent("lms-state.json")
         historyURL = directory.appendingPathComponent("lms-history.json")
         self.defaults = defaults
+        isDisconnectPending = defaults.bool(forKey: Keys.disconnectPending)
         isEnabled = defaults.bool(forKey: Keys.enabled)  // 기본 끔
         let w = defaults.integer(forKey: Keys.weeks)
         weeks = w == 0 ? LmsDisplay.defaultWeeks : LmsDisplay.clampWeeks(w)
@@ -206,26 +215,63 @@ final class LmsStore {
     /// - 마감이 지난 과제(피드에 있는 것 + 지금 캐시에 있던 것) → history로 upsert
     /// - 마감 오늘 ~ 8주 → `lms.json` 통째로 교체. 마감 전에 피드에서 사라진 과제는 history에 넣지 않는다
     /// - 체크 상태: `lms.json`이나 history에 없는 UID는 정리
-    func replaceItems(with parsed: [LmsItem], today: LocalDate) {
-        var changed = upsertHistory(items.filter { $0.dueDate < today })   // 캐시에 있다가 마감이 지난 것
-        changed = upsertHistory(parsed.filter { $0.dueDate < today }) || changed  // 피드의 지난 과제 (최신 내용으로 갱신)
-        let range = LmsDisplay.cacheRange(today: today)
-        items = parsed.filter { range.contains($0.dueDate) }
-        writeCache()
-        if changed { writeHistory() }
-        cleanUpChecks()
+    @discardableResult
+    func replaceItems(with parsed: [LmsItem], today: LocalDate) -> Bool {
+        // history를 먼저 내구성 있게 저장한다. 어느 단계에서 멈춰도 과거 원본은
+        // 기존 cache 또는 history 중 적어도 한 파일에 남는다.
+        pendingReplacement = (parsed, today)
+        // 다음 응답이 와도 이전 응답의 아직 저장하지 못한 과거 기록은 합쳐서 보존한다.
+        for item in parsed.filter({ $0.dueDate < today }) {
+            unpersistedPast.removeAll { $0.uid == item.uid }
+            unpersistedPast.append(item)
+        }
+        let previousHistory = history
+        _ = upsertHistory(unpersistedPast)
+        _ = upsertHistory(items.filter { $0.dueDate < today })
+        _ = upsertHistory(parsed.filter { $0.dueDate < today })
+        let nextHistory = history
+        history = previousHistory
+        if nextHistory != history || failedWrites.contains(historyURL.lastPathComponent) {
+            guard write(HistoryFile(schemaVersion: Self.schemaVersion, items: nextHistory), to: historyURL) else { return false }
+        }
+        history = nextHistory
+        unpersistedPast = []
+        let nextItems = parsed.filter { LmsDisplay.cacheRange(today: today).contains($0.dueDate) }
+        guard write(CacheFile(schemaVersion: Self.schemaVersion, items: nextItems), to: cacheURL) else {
+            notifyChanged()
+            return false
+        }
+        items = nextItems
+        pendingReplacement = nil
+        let checksSaved = cleanUpChecks()
         notifyChanged()
+        return checksSaved
     }
 
-    /// 날짜가 바뀌었을 때 등: 캐시에서 마감이 지난 과제를 history로 옮긴다 (네트워크 없음)
-    func archivePastItems(today: LocalDate) {
-        let past = items.filter { $0.dueDate < today }
-        guard !past.isEmpty else { return }
-        _ = upsertHistory(past)
-        items.removeAll { $0.dueDate < today }
-        writeHistory()
-        writeCache()
-        lmsStoreLogger.info("lms archived \(past.count, privacy: .public) past items")
+    /// history 저장이 실패하면 기존 cache를 줄이지 않는다.
+    @discardableResult
+    func archivePastItems(today: LocalDate) -> Bool {
+        if pendingReplacement != nil, !retryPendingSaves() { return false }
+        guard items.contains(where: { $0.dueDate < today }) else { return true }
+        return replaceItems(with: items, today: today)
+    }
+
+    /// 자동 재시도 루프 없이 설정 버튼·종료 시에만 호출한다.
+    @discardableResult
+    func retryPendingSaves() -> Bool {
+        var success = true
+        if let pending = pendingReplacement {
+            success = replaceItems(with: pending.items, today: pending.today)
+        } else if failedWrites.contains(historyURL.lastPathComponent) {
+            success = writeHistory()
+        }
+        if failedWrites.contains(stateURL.lastPathComponent) { success = writeState() && success }
+        return success && !hasPendingSave
+    }
+
+    func setDisconnectPending(_ pending: Bool) {
+        isDisconnectPending = pending
+        defaults.set(pending, forKey: Keys.disconnectPending)
         notifyChanged()
     }
 
@@ -262,56 +308,83 @@ final class LmsStore {
 
     /// 새 주소를 저장했을 때
     func feedURLSaved(masked: String) {
+        pendingReplacement = nil
+        // 이전 연결의 미저장 응답은 재시도로 복원하지 않는다. 원본 cache는 다음 안전한 교체까지 유지.
+        failedWrites.remove(cacheURL.lastPathComponent)
+        failedWrites.remove(historyURL.lastPathComponent)
+        updateSaveError()
+        setDisconnectPending(false)
+        defaults.set(false, forKey: Keys.historySeeded)
         maskedFeedURL = masked
         defaults.set(masked, forKey: Keys.masked)
         setRecord(record.resetForNewURL())
     }
 
     /// 연결 해제: 가린 주소·캐시(`lms.json`)·동기화 기록 삭제. **체크 상태와 기록(history)은 유지** (주소 파일 삭제는 서비스가 함)
-    func disconnect() {
+    @discardableResult
+    func disconnect() -> Bool {
+        // 미저장 이동을 먼저 저장한다. 실패하면 원본 cache를 지우지 않는다.
+        guard retryPendingSaves() else { return false }
+        do {
+            if FileManager.default.fileExists(atPath: cacheURL.path) {
+                try FileManager.default.removeItem(at: cacheURL)
+            }
+        } catch { return false }
+        pendingReplacement = nil
         maskedFeedURL = nil
         defaults.removeObject(forKey: Keys.masked)
+        defaults.set(false, forKey: Keys.historySeeded)
         items = []
-        try? FileManager.default.removeItem(at: cacheURL)
+        setDisconnectPending(false)
         setRecord(record.resetForNewURL())
-        lmsStoreLogger.info("lms disconnected: cache removed, checks and history kept")
+        return true
     }
 
     // MARK: 체크
 
-    func toggleCheck(uid: String) {
+    @discardableResult
+    func toggleCheck(uid: String) -> Bool {
         if checked[uid] != nil {
             checked[uid] = nil
         } else {
             checked[uid] = now()
         }
-        writeState()
+        let saved = writeState()
         notifyChanged()
+        return saved
     }
 
     /// `lms.json`에도 history에도 없는 UID의 체크 상태를 지운다 (동기화 성공 때만, T-009 규칙)
-    private func cleanUpChecks() {
+    private func cleanUpChecks() -> Bool {
         let known = Set(items.map(\.uid)).union(history.map(\.uid))
         let gone = checked.keys.filter { !known.contains($0) }
-        guard !gone.isEmpty else { return }
+        guard !gone.isEmpty else { return true }
         for uid in gone { checked[uid] = nil }
-        writeState()
+        return writeState()
     }
 
     // MARK: 기록 정리 (HistoryService가 사용자 확인 후 호출)
 
     /// history 항목과 체크 상태를 지운다. 백업은 호출한 쪽이 먼저 끝낸다
-    func removeHistory(uids: Set<String>, checks checkUIDs: Set<String>) {
-        guard !uids.isEmpty || !checkUIDs.isEmpty else { return }
-        if !uids.isEmpty {
-            history.removeAll { uids.contains($0.uid) }
-            writeHistory()
+    @discardableResult
+    func removeHistory(uids: Set<String>, checks checkUIDs: Set<String>) -> Bool {
+        // 대기 중인 응답 때문에 사용자가 지운 기록이 나중에 복원되지 않게 한다.
+        guard retryPendingSaves() else { return false }
+        let nextHistory = history.filter { !uids.contains($0.uid) }
+        if nextHistory != history {
+            guard write(HistoryFile(schemaVersion: Self.schemaVersion, items: nextHistory), to: historyURL) else { return false }
+            history = nextHistory
         }
-        if !checkUIDs.isEmpty {
-            for uid in checkUIDs { checked[uid] = nil }
-            writeState()
+        let nextChecks = checked.filter { !checkUIDs.contains($0.key) }
+        if nextChecks != checked {
+            guard write(StateFile(schemaVersion: Self.stateSchemaVersion, doneUids: nextChecks), to: stateURL) else {
+                notifyChanged()
+                return false
+            }
+            checked = nextChecks
         }
         notifyChanged()
+        return true
     }
 
     // MARK: 파일 쓰기 (원자적)
@@ -334,24 +407,32 @@ final class LmsStore {
 
     enum StoreError: Error { case unsupported }
 
-    private func writeCache() {
-        write(CacheFile(schemaVersion: Self.schemaVersion, items: items), to: cacheURL)
-    }
-
-    private func writeHistory() {
+    @discardableResult
+    private func writeHistory() -> Bool {
         write(HistoryFile(schemaVersion: Self.schemaVersion, items: history), to: historyURL)
     }
 
-    private func writeState() {
+    @discardableResult
+    private func writeState() -> Bool {
         write(StateFile(schemaVersion: Self.stateSchemaVersion, doneUids: checked), to: stateURL)
     }
 
-    private func write<T: Encodable>(_ value: T, to url: URL) {
+    private func updateSaveError() {
+        saveError = failedWrites.isEmpty ? nil : "LMS 변경을 저장하지 못했어요. 앱을 종료하지 말고 저장을 다시 시도해 주세요."
+    }
+
+    private func write<T: Encodable>(_ value: T, to url: URL) -> Bool {
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try TodoStore.makeEncoder().encode(value).write(to: url, options: .atomic)
+            failedWrites.remove(url.lastPathComponent)
+            updateSaveError()
+            return true
         } catch {
+            failedWrites.insert(url.lastPathComponent)
+            updateSaveError()
             lmsStoreLogger.error("lms write failed \(url.lastPathComponent, privacy: .public): \(String(describing: type(of: error)), privacy: .public)")
+            return false
         }
     }
 

@@ -6,17 +6,36 @@ sys.path.insert(0,str(Path.cwd()/'scripts/lib'))
 spec=importlib.util.spec_from_file_location('release_tool',Path.cwd()/'scripts/lib/release_tool.py')
 r=importlib.util.module_from_spec(spec);spec.loader.exec_module(r)
 SOURCE=Path.cwd();ORIGINAL_RUN=r.run
-PROJECT=(SOURCE/'project.yml').read_text();TEMPLATE=plistlib.loads((SOURCE/'DoIt/Resources/Info.plist').read_bytes())
+# 실제 project/plist의 현재 버전·gate를 복사하지 않는다. 최초 발행 전 fixture를 고정한다.
+TEMPLATE={
+ 'SUFeedURL':'https://fixture.github.io/DoIt/appcast.xml',
+ 'SUPublicEDKey':base64.b64encode(b'f'*32).decode(),
+ 'SUEnableAutomaticChecks':True,'SUEnableSystemProfiling':False,
+ 'SUAutomaticallyUpdate':False,'SUAllowsAutomaticUpdates':False,
+ 'SUVerifyUpdateBeforeExtraction':True,'DoItUpdateValidation':False,
+ 'DoItDistributionEnabled':True,
+}
+PROJECT='''name: ReleaseFixture
+packages:
+  Sparkle:
+    exactVersion: 2.10.1
+settings:
+  base:
+    MARKETING_VERSION: "0.9.2"
+    CURRENT_PROJECT_VERSION: "10"
+targets:
+  DoIt:
+    info:
+      properties:
+'''+''.join('        '+key+': '+json.dumps(value)+'\n' for key,value in TEMPLATE.items())
 SIG=base64.b64encode(b'v'*64).decode()
 class ReleaseTests(unittest.TestCase):
  def setUp(self):
   self.temp=tempfile.TemporaryDirectory(prefix='doit-release-unit-',dir='/private/tmp');self.root=Path(self.temp.name)
   r.ROOT=self.root
   (self.root/'DoIt/Resources').mkdir(parents=True)
-  project=PROJECT.replace('https://prestige-kim.github.io/DoIt/appcast.xml','https://example.github.io/DoIt/appcast.xml').replace('DoItDistributionEnabled: false','DoItDistributionEnabled: true')
-  (self.root/'project.yml').write_text(project)
-  template=copy.deepcopy(TEMPLATE);template['SUFeedURL']='https://example.github.io/DoIt/appcast.xml';template['DoItDistributionEnabled']=True
-  (self.root/'DoIt/Resources/Info.plist').write_bytes(plistlib.dumps(template))
+  (self.root/'project.yml').write_text(PROJECT)
+  (self.root/'DoIt/Resources/Info.plist').write_bytes(plistlib.dumps(TEMPLATE))
   self.tools=self.root/'build/tools';(self.tools/'bin').mkdir(parents=True)
   (self.tools/'Sparkle.framework/Resources').mkdir(parents=True)
   (self.tools/'Sparkle.framework/Resources/Info.plist').write_bytes(plistlib.dumps({'CFBundleShortVersionString':'2.10.1'}))
@@ -26,7 +45,7 @@ class ReleaseTests(unittest.TestCase):
   (self.root/'notes.md').write_text('가짜 변경 <태그> & "따옴표"\n')
   self.git('init','-b','main');self.git('config','user.name','Release Fixture');self.git('config','user.email','release'+'@'+'example.invalid')
   self.git('add','.');self.git('commit','-qm','fixture')
-  self.original=(self.root/'project.yml').read_bytes();self.fail=None;self.external=False;self.calls=[]
+  self.original=(self.root/'project.yml').read_bytes();self.failure_rule=None;self.external=False;self.calls=[]
   self.saved=(r.run,r.check_tools,r.verify_app,r.verify_signature)
   r.run=self.fake_run;r.check_tools=lambda plan: None;r.verify_app=self.fake_verify_app;r.verify_signature=lambda *args: None
  def tearDown(self):
@@ -34,7 +53,7 @@ class ReleaseTests(unittest.TestCase):
  def git(self,*args):return subprocess.check_output(['git','-C',str(self.root),*args],stderr=subprocess.DEVNULL).decode().strip()
  def fake_run(self,args,rule,cwd=None):
   self.calls.append(rule)
-  if rule==self.fail:
+  if rule==self.failure_rule:
    if self.external:(self.root/'project.yml').write_bytes((self.root/'project.yml').read_bytes()+b'# external edit\n')
    r.reject(rule)
   if str(args[0])=='git':return ORIGINAL_RUN(args,rule,cwd)
@@ -94,6 +113,23 @@ class ReleaseTests(unittest.TestCase):
  def test_version_downgrade(self):self.blocked('version-downgrade','0.9.1')
  def test_same_marketing_version(self):self.assertEqual(self.plan('0.9.2')[0]['build'],11)
  def test_first_public_version(self):self.blocked('first-public-version-must-be-1.0.0','1.1.0');self.assertEqual(self.plan('1.0.0')[1],[])
+ def test_first_public_release_prepares_version_and_build(self):
+  plan,errors=self.plan('1.0.0');self.assertEqual(errors,[])
+  with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):r.prepare(plan)
+  folder=self.root/'dist/DoIt-1.0.0-11';manifest=r.verify_manifest(folder/'release.manifest.json',self.ready_info())
+  self.assertEqual(manifest['version'],'1.0.0');self.assertEqual(manifest['source_version'],{'version':'0.9.2','build':10})
+  self.assertEqual(manifest['build'],11)
+ def test_subsequent_public_release(self):
+  self.set_project_version('1.0.1',12)
+  self.feed([12],marketing='1.0.1')
+  plan,errors=self.plan('1.0.2')
+  self.assertEqual(errors,[]);self.assertEqual(plan['current'],'1.0.1');self.assertEqual(plan['build'],13)
+  with contextlib.redirect_stdout(io.StringIO()),contextlib.redirect_stderr(io.StringIO()):r.prepare(plan)
+  folder=self.root/'dist/DoIt-1.0.2-13';manifest=r.verify_manifest(folder/'release.manifest.json',self.ready_info())
+  self.assertEqual(manifest['version'],'1.0.2');self.assertEqual(manifest['build'],13)
+  self.assertEqual(r.feed_builds(r.read_xml((folder/'appcast-candidate.xml').read_bytes())),[13,12])
+ def test_subsequent_public_release_cannot_downgrade(self):
+  self.set_project_version('1.0.1',12);self.blocked('version-downgrade','1.0.0')
  def test_placeholder(self):self.rewrite('SUFeedURL','https://updates.example.invalid/appcast.xml');self.blocked('production-package-settings-required')
  def test_wrong_feed_forms(self):
   for url in ('http://example.github.io/DoIt/appcast.xml','https://example.github.io/DoIt/appcast.xml?x=1','https://other.org/appcast.xml','https://me:@example.github.io/DoIt/appcast.xml'):
@@ -117,10 +153,15 @@ class ReleaseTests(unittest.TestCase):
   self.root.joinpath('notes.md').write_text('가짜 '+self.git('rev-parse','HEAD'));self.blocked('source-sha-in-public-notes')
  def test_tool_version(self):
   self.tools.joinpath('Sparkle.framework/Resources/Info.plist').write_bytes(plistlib.dumps({'CFBundleShortVersionString':'2.9.5'}));self.blocked('sparkle-tools-version')
- def feed(self,builds):
+ def set_project_version(self,marketing,build):
+  before=(self.root/'project.yml').read_bytes()
+  (self.root/'project.yml').write_bytes(r.patched_project(before,marketing,build))
+  self.git('add','project.yml');self.git('commit','-qm','fixture version')
+  self.original=(self.root/'project.yml').read_bytes()
+ def feed(self,builds,marketing='0.9.2'):
   root=r.ET.Element('rss',version='2.0');ch=r.ET.SubElement(root,'channel')
   for n in builds:
-   item=r.ET.SubElement(ch,'item');r.ET.SubElement(item,r.TAG+'version').text=str(n);r.ET.SubElement(item,r.TAG+'shortVersionString').text='0.9.2';r.ET.SubElement(item,'title').text='기존 항목'
+   item=r.ET.SubElement(ch,'item');r.ET.SubElement(item,r.TAG+'version').text=str(n);r.ET.SubElement(item,r.TAG+'shortVersionString').text=marketing;r.ET.SubElement(item,'title').text='기존 항목'
   p=self.root/'site/appcast.xml';p.parent.mkdir(exist_ok=True);p.write_bytes(r.ET.tostring(root));self.git('add','site');self.git('commit','-qm','feed')
  def test_maximum_feed_build(self):self.feed([30]);self.assertEqual(self.ready()['build'],31)
  def test_duplicate_feed_rejected(self):self.feed([20,20]);self.blocked('duplicate-appcast-build')
@@ -138,15 +179,15 @@ class ReleaseTests(unittest.TestCase):
   self.assertEqual(r.feed_builds(root),[21,20]);self.assertEqual((self.root/'site/appcast.xml').read_bytes(),before)
   self.assertEqual(root.find('channel/item/description').text,(self.root/'notes.md').read_text());self.assertIn(b'&lt;', (folder/'appcast-candidate.xml').read_bytes())
  def test_build_failure_rollback(self):
-  self.fail='release-build-failed'
+  self.failure_rule='release-build-failed'
   with self.assertRaises(r.Rejected):self.prepare()
   self.unchanged();self.assertFalse((self.root/'dist').exists())
  def test_package_failure_rollback(self):
-  self.fail='package-failed'
+  self.failure_rule='package-failed'
   with self.assertRaises(r.Rejected):self.prepare()
   self.unchanged();self.assertFalse((self.root/'dist').exists())
  def test_signature_failure_rollback_preserves_old_files(self):
-  (self.root/'dist').mkdir();(self.root/'dist/keep.txt').write_text('keep');self.fail='signing-failed'
+  (self.root/'dist').mkdir();(self.root/'dist/keep.txt').write_text('keep');self.failure_rule='signing-failed'
   with self.assertRaises(r.Rejected):self.prepare()
   self.unchanged();self.assertEqual((self.root/'dist/keep.txt').read_text(),'keep');self.assertEqual(len(list((self.root/'dist').iterdir())),1)
  def test_key_mismatch_before_mutation(self):
@@ -155,7 +196,7 @@ class ReleaseTests(unittest.TestCase):
   with self.assertRaises(r.Rejected):self.prepare()
   self.unchanged();self.assertNotIn('xcodegen-failed',self.calls)
  def test_external_edit_not_overwritten(self):
-  self.fail='release-build-failed';self.external=True
+  self.failure_rule='release-build-failed';self.external=True
   with self.assertRaises(r.Rejected):self.prepare()
   self.assertTrue((self.root/'project.yml').read_bytes().endswith(b'# external edit\n'))
   self.assertIn(b'CURRENT_PROJECT_VERSION: "11"',(self.root/'project.yml').read_bytes())
@@ -212,7 +253,7 @@ class ReleaseTests(unittest.TestCase):
   with self.assertRaises(r.Rejected) as ex:r.manifest_data(path)
   self.assertEqual(ex.exception.rule,'duplicate-json-key')
  def test_lock_released_after_failed_transaction(self):
-  self.fail='package-failed'
+  self.failure_rule='package-failed'
   with self.assertRaises(r.Rejected):
    with r.lock():self.prepare()
   self.unchanged()

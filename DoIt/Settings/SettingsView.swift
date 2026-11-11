@@ -65,6 +65,16 @@ struct SettingsView: View {
                     .padding(.horizontal, 28)
                     .padding(.top, 20)
                     .padding(.bottom, 2)
+                if history.todoStore.saveError != nil || history.lmsStore.saveError != nil {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("저장하지 못한 변경이 있어요. 앱을 종료하지 말고 다시 저장해 주세요.")
+                            .font(.caption).foregroundStyle(Palette.overdue)
+                        Button("저장 다시 시도") {
+                            _ = history.todoStore.flushPendingSave()
+                            _ = history.lmsStore.retryPendingSaves()
+                        }
+                    }.padding(.horizontal, 28).padding(.vertical, 8)
+                }
                 detail
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
@@ -270,7 +280,14 @@ struct LmsSettingsPane: View {
                 }
             }
 
-            if store.hasFeedURL && !editingURL {
+            if store.isDisconnectPending {
+                Section {
+                    Text("연결 해제를 마치지 못했어요. 동기화는 중단했으며, 저장된 주소나 캐시가 남아 있을 수 있어요.")
+                        .font(.caption).foregroundStyle(Palette.overdue)
+                    Button("연결 해제 다시 시도") { sync.disconnect() }
+                }
+            }
+            if store.hasFeedURL && !editingURL && !store.isDisconnectPending {
                 Section {
                     HStack {
                         RowLabel(title: "연결 해제", caption: "이 맥에 저장된 피드 주소를 지워요. 지난 기록은 남아요.")

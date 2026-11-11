@@ -123,8 +123,10 @@ struct MigratingFeedURLStore: FeedURLStoring {
         return url
     }
 
-    func delete() {
-        file.delete()
-        legacy.delete()
+    @discardableResult
+    func delete() -> Bool {
+        let fileDeleted = file.delete()
+        let status = legacy.delete()
+        return fileDeleted && (status == errSecSuccess || status == errSecItemNotFound)
     }
 }

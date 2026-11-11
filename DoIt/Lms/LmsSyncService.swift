@@ -31,16 +31,38 @@ final class LmsSyncService {
     let store: LmsStore
     private let feedURLStore: FeedURLStoring
     private let fetcher: FeedFetching
+    private let parse: @Sendable (Data, TimeZone) async -> IcsParser.Result?
     /// 날짜·시각을 정할 시간대 (테스트에서 고정)
     var timeZone: () -> TimeZone = { .current }
     /// 오늘 날짜 (캐시 범위 계산용)
     var today: () -> LocalDate = { LocalDate.today() }
     private var wakeObserver: NSObjectProtocol?
+    private var connectionGeneration: UInt64 = 0
+    private var activeRequest: UUID?
+    private var queuedNewURL = false
 
-    init(store: LmsStore, feedURLStore: FeedURLStoring, fetcher: FeedFetching) {
+    private func isCurrent(_ generation: UInt64, _ id: UUID) -> Bool {
+        generation == connectionGeneration && activeRequest == id && !store.isDisconnectPending
+    }
+
+    private func completeRequest(_ id: UUID) {
+        guard activeRequest == id else { return }
+        activeRequest = nil
+        store.isSyncing = false
+        if queuedNewURL {
+            queuedNewURL = false
+            trigger(.newURL)
+        }
+    }
+
+    init(store: LmsStore, feedURLStore: FeedURLStoring, fetcher: FeedFetching,
+         parse: @escaping @Sendable (Data, TimeZone) async -> IcsParser.Result? = { data, zone in
+             await Task.detached { try? IcsParser.parse(data: data, timeZone: zone) }.value
+         }) {
         self.store = store
         self.feedURLStore = feedURLStore
         self.fetcher = fetcher
+        self.parse = parse
     }
 
     // MARK: 트리거
@@ -57,8 +79,8 @@ final class LmsSyncService {
     /// 동기화 시도. 조건이 안 맞으면 아무것도 하지 않는다. 테스트에서 끝날 때까지 기다릴 수 있게 Task를 돌려준다
     @discardableResult
     func trigger(_ trigger: Trigger) -> Task<Void, Never>? {
-        guard store.isEnabled, store.hasFeedURL else { return nil }
-        guard !store.isSyncing else {
+        guard store.isEnabled, store.hasFeedURL, !store.isDisconnectPending else { return nil }
+        guard activeRequest == nil, !store.isSyncing else {
             syncLogger.debug("lms sync skipped (\(trigger.rawValue, privacy: .public)): in flight")
             return nil
         }
@@ -85,6 +107,9 @@ final class LmsSyncService {
             return nil  // 저장소 오류는 저장소가 상태 코드만 기록
         }
 
+        let id = UUID()
+        let generation = connectionGeneration
+        activeRequest = id
         store.isSyncing = true
         store.setRecord(LmsSyncPolicy.recordingAttempt(store.record, now: now))  // 실패해도 시도로 계산
         // 기록(T-009)을 처음 채울 때는 전체를 받도록 조건부 헤더를 빼고 보낸다 (요청 방식은 그대로 GET 1개)
@@ -98,11 +123,14 @@ final class LmsSyncService {
         return Task { @MainActor [weak self] in
             guard let self else { return }
             let outcome = await self.fetcher.fetch(request)
-            await self.finish(outcome)
+            defer { self.completeRequest(id) }
+            guard self.isCurrent(generation, id) else { return }
+            await self.finish(outcome, generation: generation, id: id)
         }
     }
 
-    private func finish(_ outcome: FeedFetchOutcome) async {
+    private func finish(_ outcome: FeedFetchOutcome, generation: UInt64, id: UUID) async {
+        guard isCurrent(generation, id) else { return }
         let now = store.now()
         let evaluation = LmsSyncPolicy.evaluate(outcome, now: now)
         var parseSucceeded = false
@@ -110,10 +138,11 @@ final class LmsSyncService {
         case .fresh(let body, _, _):
             let zone = timeZone()
             // 파싱은 메인 스레드 밖에서 (응답은 최대 5MB)
-            let parsed = await Task.detached { try? IcsParser.parse(data: body, timeZone: zone) }.value
+            let parsed = await parse(body, zone)
+            guard isCurrent(generation, id) else { return }
             if let parsed {
+                guard store.replaceItems(with: parsed.items, today: today()) else { return }
                 parseSucceeded = true
-                store.replaceItems(with: parsed.items, today: today())
                 store.markHistorySeeded()
                 syncLogger.info("lms sync ok: \(parsed.items.count, privacy: .public) assignments, non-assignment \(parsed.skippedNonAssignment, privacy: .public), broken \(parsed.skippedBroken, privacy: .public)")
             } else {
@@ -127,7 +156,6 @@ final class LmsSyncService {
             syncLogger.error("lms sync: 429 retryAfter=\(retryAfter.map { Int($0) } ?? -1, privacy: .public)")
         }
         store.setRecord(LmsSyncPolicy.recording(evaluation, parseSucceeded: parseSucceeded, into: store.record, now: now))
-        store.isSyncing = false
     }
 
     private static func describe(_ outcome: FeedFetchOutcome) -> String {
@@ -156,7 +184,8 @@ final class LmsSyncService {
     }
 
     func manualAvailability(now: Date) -> ManualAvailability {
-        Self.manualAvailability(isEnabled: store.isEnabled, hasFeedURL: store.hasFeedURL,
+        guard !store.isDisconnectPending else { return ManualAvailability(enabled: false, note: "연결 해제 다시 시도 필요") }
+        return Self.manualAvailability(isEnabled: store.isEnabled, hasFeedURL: store.hasFeedURL,
                                 isSyncing: store.isSyncing, record: store.record, now: now)
     }
 
@@ -187,6 +216,8 @@ final class LmsSyncService {
             syncLogger.info("feed URL rejected: \(String(describing: error), privacy: .public)")
             return error
         case .success(let url):
+            // 기존 연결의 미저장 사용자 기록을 버린 채 주소만 바꾸지 않는다.
+            guard store.retryPendingSaves() else { return .storageFailed(-1) }
             do {
                 try feedURLStore.save(url)
             } catch let error as FeedURLError {
@@ -194,16 +225,31 @@ final class LmsSyncService {
             } catch {
                 return .storageFailed(-1)
             }
+            connectionGeneration &+= 1
             store.feedURLSaved(masked: FeedURLValidator.masked(url))
-            trigger(.newURL)
+            if activeRequest != nil {
+                // 이전 GET은 끝날 때까지 기다리되 그 결과는 폐기한다. 동시에 두 GET을 보내지 않는다.
+                queuedNewURL = true
+            } else {
+                trigger(.newURL)
+            }
             return nil
         }
     }
 
     /// 연결 해제: 피드 주소 삭제(파일 + 남은 키체인 항목) + `lms.json` 삭제 (체크 상태는 유지)
-    func disconnect() {
-        feedURLStore.delete()
-        store.disconnect()
+    @discardableResult
+    func disconnect() -> Bool {
+        connectionGeneration &+= 1
+        queuedNewURL = false
+        store.isSyncing = false
+        store.setDisconnectPending(true)
+        // 일부 삭제에 실패해도 네트워크는 중단한다. flag는 재시작 뒤에도 유지한다.
+        guard feedURLStore.delete(), store.disconnect() else {
+            store.isEnabled = false
+            return false
+        }
+        return true
     }
 }
 

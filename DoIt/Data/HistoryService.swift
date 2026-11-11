@@ -52,6 +52,8 @@ final class HistoryService {
     enum CleanupError: Error {
         /// 백업 파일을 쓰지 못함 → 아무것도 지우지 않았다
         case backupFailed(String)
+        /// 파일별로 일부 정리가 끝났을 수 있다. 남은 항목을 다시 확인한다.
+        case saveFailed
     }
 
     struct CleanupResult: Equatable {
@@ -66,12 +68,21 @@ final class HistoryService {
         if backup {
             backupURL = try writeBackup(plan, kind: kind)
         }
-        let removed = todoStore.removeCompleted(ids: Set(plan.todos.map(\.id)))
-        lmsStore.removeHistory(uids: Set(plan.lmsHistory.map(\.uid)), checks: Set(plan.lmsChecks.keys))
+        let ids = Set(plan.todos.map(\.id))
+        let expected = todoStore.todos.filter { ids.contains($0.id) && $0.isDone }.count
+        let removed = todoStore.removeCompleted(ids: ids)
+        guard removed.count == expected else { recompute(); throw CleanupError.saveFailed }
+        let historyUIDs = Set(plan.lmsHistory.map(\.uid))
+        let expectedHistory = lmsStore.history.filter { historyUIDs.contains($0.uid) }.count
+        guard lmsStore.removeHistory(uids: historyUIDs, checks: Set(plan.lmsChecks.keys)) else {
+            recompute()
+            onDataChanged()
+            throw CleanupError.saveFailed
+        }
         historyLogger.info("\(kind, privacy: .public) done: todos \(removed.count, privacy: .public), lms history \(plan.lmsHistory.count, privacy: .public), checks \(plan.lmsChecks.count, privacy: .public), backup \(backup, privacy: .public)")
         recompute()
         onDataChanged()
-        return CleanupResult(removedCount: removed.count + plan.lmsHistory.count, backupURL: backupURL)
+        return CleanupResult(removedCount: removed.count + expectedHistory, backupURL: backupURL)
     }
 
     /// 모든 기록 초기화: 항상 먼저 백업한다

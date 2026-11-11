@@ -20,8 +20,8 @@ settings:
     SWIFT_VERSION: "5.0"
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     # 버전 (T-010): 올릴 때는 여기 두 줄만 바꾼다. 빌드 번호는 배포할 때마다 정수로 1씩 올린다
-    MARKETING_VERSION: "1.0.1"
-    CURRENT_PROJECT_VERSION: "12"
+    MARKETING_VERSION: "1.0.2"
+    CURRENT_PROJECT_VERSION: "13"
     # 서명 (D-017): 자체 서명 인증서 1개로 Debug·Release·테스트 모두 서명 → 업데이트해도 '같은 앱'으로 인식된다.
     # 인증서는 로그인 키체인에만 있고 저장소에는 없다. 없는 맥에서 임시로 빌드하려면
     # xcodebuild ... CODE_SIGN_IDENTITY=- (임시 서명, 이 빌드는 배포·설치에 쓰지 않는다)

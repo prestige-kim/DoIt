@@ -111,6 +111,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return false
     }
 
+    /// 일반 종료에서 저장 실패를 조용히 버리지 않는다. 노치 패널은 활성화하지 않는다.
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let todosSaved = store?.flushPendingSave() ?? true
+        let lmsSaved = lmsSync?.store.retryPendingSaves() ?? true
+        guard todosSaved && lmsSaved else {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "변경을 저장하지 못했어요"
+            alert.informativeText = "앱을 계속 켜 둘게요. 설정에서 저장을 다시 시도해 주세요."
+            alert.addButton(withTitle: "확인")
+            alert.runModal()
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
+
     /// 종료 시 디바운스 대기 중인 저장이 있으면 즉시 저장한다 (T-002)
     func applicationWillTerminate(_ notification: Notification) {
         store?.flushPendingSave()

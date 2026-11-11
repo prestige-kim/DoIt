@@ -136,8 +136,10 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
                 let result = try action()
                 let backup = result.backupURL.map { "백업: archive/\($0.lastPathComponent)" } ?? "백업하지 않았어요."
                 self.inform(window, "기록 \(result.removedCount)개를 정리했어요", backup)
-            } catch {
+            } catch HistoryService.CleanupError.backupFailed {
                 self.inform(window, "정리하지 못했어요", "백업 파일을 쓰지 못해 아무것도 지우지 않았어요.")
+            } catch {
+                self.inform(window, "정리를 마치지 못했어요", "일부 파일의 저장이 실패했어요. 이미 정리된 항목과 남은 항목을 다시 확인해 주세요. 만든 백업은 그대로 남아 있어요.")
             }
         }
     }

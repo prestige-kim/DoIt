@@ -10,13 +10,31 @@ source scripts/lib/common.sh
 require_signing_identity
 was_running=0
 pgrep -x DoIt >/dev/null && was_running=1
+
+# xcodegen 등 중간 단계가 실패해도 원래 실행 중이던 설치본은 다시 켠다.
+# 복원 명령의 결과가 테스트의 원래 실패 코드를 덮지 않게 한다.
+restore_installed_app() {
+  local original_result=$?
+  trap - EXIT
+  if [[ $was_running == 1 && -d "$INSTALLED_APP" ]]; then
+    if open "$INSTALLED_APP"; then
+      echo "설치본 DoIt을 다시 켰어요."
+    else
+      echo "설치본 DoIt을 다시 켜지 못했어요. 직접 실행해 주세요." >&2
+      if [[ $original_result == 0 ]]; then original_result=1; fi
+    fi
+  fi
+  exit "$original_result"
+}
+trap restore_installed_app EXIT
+
 quit_running_doit
 xcodegen generate >/dev/null
-result=0
+# grep은 출력이 없으면 1을 반환하므로 파이프라인 전체 대신 xcodebuild 상태를 쓴다.
+# || true 같은 다른 명령이 pipestatus를 바꾸기 전에 즉시 보존한다.
+set +e
 xcodebuild -project DoIt.xcodeproj -scheme DoIt -configuration Debug -derivedDataPath build test "$@" 2>&1 \
-  | grep -aE "^/.*(error|warning):|failed \(|Executed [0-9]+ tests, |TEST (SUCCEEDED|FAILED)|Could not launch" | awk '!seen[$0]++' | tail -4 || true
-result=${pipestatus[1]}
-if [[ $was_running == 1 && -d "$INSTALLED_APP" ]]; then
-  open "$INSTALLED_APP" && echo "설치본 DoIt을 다시 켰어요."
-fi
-exit $result
+  | grep -aE "^/.*(error|warning):|failed \(|Executed [0-9]+ tests, |TEST (SUCCEEDED|FAILED)|Could not launch" | awk '!seen[$0]++' | tail -4
+build_pipeline_status=("${pipestatus[@]}")
+set -e
+exit "${build_pipeline_status[1]}"

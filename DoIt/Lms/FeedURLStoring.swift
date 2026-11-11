@@ -58,5 +58,5 @@ enum FeedURLValidator {
 protocol FeedURLStoring {
     func save(_ url: URL) throws
     func load() throws -> URL?
-    func delete()
+    @discardableResult func delete() -> Bool
 }

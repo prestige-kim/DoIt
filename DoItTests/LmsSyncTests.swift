@@ -58,7 +58,7 @@ final class FakeFeedURLStore: FeedURLStoring {
     var saveCount = 0
     func save(_ url: URL) throws { stored = url; saveCount += 1 }
     func load() throws -> URL? { stored }
-    func delete() { stored = nil }
+    @discardableResult func delete() -> Bool { stored = nil; return true }
 }
 
 /// T-007: LmsStore 파일 저장·체크 정리, LmsSyncService 흐름 (가짜 응답만)

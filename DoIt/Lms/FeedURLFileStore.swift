@@ -150,13 +150,17 @@ struct FeedURLFileStore: FeedURLFileStoring {
 
     // MARK: 삭제
 
-    func delete() {
+    @discardableResult
+    func delete() -> Bool {
         if unlink(fileURL.path) == 0 {
             fileStoreLogger.info("feed url file deleted")
+            return true
         } else if errno == ENOENT {
             fileStoreLogger.info("feed url file delete: nothing to delete")
+            return true
         } else {
             fileStoreLogger.error("feed url file delete failed: errno \(errno, privacy: .public)")
+            return false
         }
     }
 
