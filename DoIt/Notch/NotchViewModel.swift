@@ -279,6 +279,10 @@ final class NotchViewModel {
                 draftDueDate = next.selected
             }
         }
+        // 목록 화면 입력 날짜도 '어제의 오늘'이었으면 새 오늘로 (T-029). 직접 고른 다른 날짜(내일·+1주·지난 날짜)는 그대로
+        if panelMode == .list, draftDueDate == old {
+            draftDueDate = new
+        }
         updateHeight()
     }
 

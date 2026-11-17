@@ -102,6 +102,56 @@ final class DesignTests: XCTestCase {
         todos.flushPendingSave()
     }
 
+    /// T-029: 목록 화면에서 자정이 지나면 입력창 날짜(오늘 버튼·날짜 선택 달력)가 어제에 남지 않는다
+    func testListDraftDueDateFollowsNewTodayAfterMidnight() {
+        let todos = makeTodos()
+        let vm = NotchViewModel(store: todos)
+        XCTAssertEqual(vm.panelMode, .list)
+        XCTAssertEqual(vm.draftDueDate, today)
+
+        clock = clock.addingTimeInterval(86_400)  // 자정이 지남
+        todos.refreshToday()
+        let next = today.adding(days: 1)
+        XCTAssertEqual(vm.draftDueDate, next, "입력창 날짜가 새 오늘로")
+        XCTAssertEqual(DueDateLabel.text(for: vm.draftDueDate, today: todos.today), "오늘", "버튼 문구는 '오늘'")
+
+        // 잠자기 등으로 여러 날을 건너뛰어도 새 오늘로
+        clock = clock.addingTimeInterval(3 * 86_400)
+        todos.refreshToday()
+        XCTAssertEqual(vm.draftDueDate, today.adding(days: 4))
+        todos.flushPendingSave()
+    }
+
+    func testListDraftDueDateKeepsUserPickedDateAfterMidnight() {
+        let todos = makeTodos()
+        let vm = NotchViewModel(store: todos)
+        let picked = today.adding(days: 7)
+        vm.pickDate(picked)                       // +1주를 직접 고름
+        clock = clock.addingTimeInterval(86_400)
+        todos.refreshToday()
+        XCTAssertEqual(vm.draftDueDate, picked, "직접 고른 날짜는 그대로")
+
+        let past = todos.today.adding(days: -3)
+        vm.pickDate(past)                         // 지난 날짜도 고를 수 있다
+        clock = clock.addingTimeInterval(86_400)
+        todos.refreshToday()
+        XCTAssertEqual(vm.draftDueDate, past, "직접 고른 지난 날짜도 그대로")
+        todos.flushPendingSave()
+    }
+
+    func testAddAfterMidnightUsesNewToday() throws {
+        let todos = makeTodos()
+        let vm = NotchViewModel(store: todos)
+        vm.turnOn()                               // 패널이 켜져 펼쳐진 상태 (꺼져 있으면 입력 이벤트를 무시한다)
+        XCTAssertEqual(vm.draftDueDate, today)
+        clock = clock.addingTimeInterval(86_400)  // 펼친 채 자정 알림 없이 날짜가 바뀜 → 추가 직전에 날짜를 확인
+        vm.submit(title: "자정 뒤 추가")
+        let added = try XCTUnwrap(todos.todos.first { $0.title == "자정 뒤 추가" })
+        XCTAssertEqual(added.dueDate, today.adding(days: 1), "어제 날짜로 저장되지 않음")
+        XCTAssertEqual(vm.draftDueDate, today.adding(days: 1))
+        todos.flushPendingSave()
+    }
+
     // MARK: 문구·점
 
     func testLmsHeaderCaption() {
