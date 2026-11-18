@@ -8,7 +8,19 @@ internal static class StartupDiagnosticsTests
         ("Startup diagnostics show stage, type names and HRESULT without the exception message", DescribeOnlySafeParts),
         ("Startup stages keep the run order and map to distinct exit codes", StageOrderAndExitCodes),
         ("Uninstall cleanup exit codes separate reminder, registration and unexpected failures", CleanupExitCodes),
+        ("A missing scheduled task is recognized even when .NET reports it as FileNotFoundException", MissingTaskIsNotAnError),
     ];
+
+    private static void MissingTaskIsNotAnError()
+    {
+        // The 1.0.0-1/2 lab failure: deleting an absent task returned 0x80070002, which .NET raises as FileNotFoundException.
+        var mapped = System.Runtime.InteropServices.Marshal.GetExceptionForHR(ScheduledTaskErrors.TaskNotFound);
+        Equal(true, mapped is FileNotFoundException);
+        Equal(true, ScheduledTaskErrors.IsTaskNotFound(mapped!));
+        Equal(true, ScheduledTaskErrors.IsTaskNotFound(new System.Runtime.InteropServices.COMException("synthetic", ScheduledTaskErrors.TaskNotFound)));
+        Equal(false, ScheduledTaskErrors.IsTaskNotFound(new UnauthorizedAccessException()));
+        Equal(false, ScheduledTaskErrors.IsTaskNotFound(new System.Runtime.InteropServices.COMException("synthetic", unchecked((int)0x80070005))));
+    }
 
     private static void DescribeOnlySafeParts()
     {

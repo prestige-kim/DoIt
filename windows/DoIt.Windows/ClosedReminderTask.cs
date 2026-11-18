@@ -9,7 +9,6 @@ namespace DoIt.Windows;
 internal sealed class ClosedReminderTask(string executable)
 {
     internal const string Argument = "--due-reminder";
-    private const int NotFound = unchecked((int)0x80070002);
 
     internal bool Replace(DayReminder? next)
     {
@@ -27,7 +26,7 @@ internal sealed class ClosedReminderTask(string executable)
             if (next is null)
             {
                 try { root.DeleteTask(taskName, 0); }
-                catch (COMException error) when (error.HResult == NotFound) { }
+                catch (Exception error) when (ScheduledTaskErrors.IsTaskNotFound(error)) { }
                 return true;
             }
 
@@ -53,9 +52,9 @@ internal sealed class ClosedReminderTask(string executable)
             root.RegisterTaskDefinition(taskName, task, 6, sid, null, 3, null); // Create or update, interactive token.
             return true;
         }
-        catch (Exception error) when (error is COMException or UnauthorizedAccessException
-            or System.Security.SecurityException or Microsoft.CSharp.RuntimeBinder.RuntimeBinderException)
+        catch (Exception error) when (error is not OutOfMemoryException)
         {
+            // Any Task Scheduler failure only disables the closed-app reminder; the settings show the status.
             return false;
         }
     }
