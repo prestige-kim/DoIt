@@ -206,7 +206,7 @@ var trayPoint = new ScreenPoint(1850, 1060);
 
 int failures = 0;
 var allTests = tests.Concat(TodoStoreTests.Cases).Concat(IcsParserTests.Cases).Concat(LmsSyncTests.Cases)
-    .Concat(HistoryServiceTests.Cases).Concat(ReminderPlannerTests.Cases).ToArray();
+    .Concat(HistoryServiceTests.Cases).Concat(ReminderPlannerTests.Cases).Concat(StartupDiagnosticsTests.Cases).ToArray();
 foreach (var test in allTests)
 {
     try

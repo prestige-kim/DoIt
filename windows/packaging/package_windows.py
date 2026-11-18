@@ -193,7 +193,8 @@ def enable_preview(preview, version, build, assets):
     index = index[:module.start()] + '<script src="./windows-preview.js"></script>\n  ' + index[module.start():]
     index_path.write_text(index, encoding="utf-8")
     (preview / "downloads/SHA256SUMS.txt").write_text(
-        "".join(f"{asset['sha256']}  {asset['filename']}\n" for asset in assets.values()), encoding="utf-8")
+        "".join(f"{asset['sha256']}  {asset['filename']}\n" for asset in assets.values()), encoding="utf-8",
+        newline="\n")  # LF on Windows too, so `shasum -c` on macOS reads the file names exactly.
 
 
 def build(args):

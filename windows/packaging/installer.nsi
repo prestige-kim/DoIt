@@ -47,6 +47,7 @@ SetOverwrite try
 Var SetupMutex
 Var StageDirectory
 Var InstallSucceeded
+Var CleanupResult
 
 !macro RequireClosed
   System::Call 'user32::FindWindowW(p 0, w "DoIt Tray") p .r0'
@@ -295,13 +296,17 @@ FunctionEnd
 Section "Uninstall"
   SetOutPath "$INSTDIR"
   !insertmacro RequireClosed
+  ; 알림 등록·알림 예약 정리. 실패해도 앱 파일·바로가기·HKCU 항목 제거는 계속하고 끝에 알린다.
+  StrCpy $CleanupResult "0"
   ${If} ${FileExists} "${APP_EXE}"
     ClearErrors
     ExecWait '$\"${APP_EXE}$\" --uninstall-cleanup' $0
-    IfErrors unfailed
-    ${If} $0 != 0
-      Goto unfailed
+    ${If} ${Errors}
+      StrCpy $CleanupResult "실행 실패"
+    ${ElseIf} $0 != 0
+      StrCpy $CleanupResult $0
     ${EndIf}
+    ClearErrors
   ${EndIf}
   ReadRegStr $0 HKCU "${RUN_KEY}" "DoIt"
   ${If} $0 == '$\"${APP_EXE}$\"'
@@ -318,6 +323,9 @@ Section "Uninstall"
   Delete "$INSTDIR\Uninstall.exe"
   SetOutPath "$LOCALAPPDATA\Programs"
   RMDir "$INSTDIR"
+  ${If} $CleanupResult != "0"
+    MessageBox MB_OK|MB_ICONINFORMATION "DoIt을 제거했습니다. 알림 등록 정리를 끝내지 못했습니다. (코드 $CleanupResult)" /SD IDOK
+  ${EndIf}
   Goto undone
 unfailed:
   MessageBox MB_OK|MB_ICONEXCLAMATION "DoIt 앱 파일을 제거하지 못했습니다. DoIt을 종료하고 다시 시도해 주세요." /SD IDOK

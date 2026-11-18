@@ -43,35 +43,47 @@ public partial class App : Application
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         base.OnStartup(e);
 
+        if (cleanupOnly)
+        {
+            // The uninstaller runs this only after checking that DoIt is closed, so it needs no instance check,
+            // data folder or tray. It removes the per-user registrations and reports failures by exit code.
+            RunUninstallCleanup();
+            return;
+        }
+
+        var stage = StartupStage.Instance;
         try
         {
             if (!ClaimInstance())
             {
-                Shutdown(cleanupOnly ? 1 : 0);
+                Shutdown(0);
                 return;
             }
 
+            stage = StartupStage.DataFolder;
             var localData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             if (string.IsNullOrEmpty(localData))
             {
-                throw new InvalidOperationException("Windows의 로컬 저장 폴더를 열 수 없습니다.");
+                throw new DirectoryNotFoundException();
             }
-
             var dataDirectory = Path.Combine(localData, "DoIt");
             startup = InstalledStartup.ForProcess(localData);
-            if ((reminderOnly || cleanupOnly) && startup.Executable is null)
+            if (reminderOnly && startup.Executable is null)
             {
-                Shutdown(1);
+                Shutdown(StartupDiagnostics.ExitCode(stage));
                 return;
             }
-            if (cleanupOnly)
-            {
-                CleanInstalledRegistration(startup.Executable!);
-                return;
-            }
+
+            stage = StartupStage.TodoStore;
             todos = new TodoStore(Path.Combine(dataDirectory, "todos.json"));
+
+            stage = StartupStage.Lms;
             lms = new LmsService(dataDirectory, new DpapiFeedAddressStore(Path.Combine(dataDirectory, "lms-feed-url")));
+
+            stage = StartupStage.Notifications;
             notificationCenter = new NotificationCenter(startup.Executable is not null, OnNotificationInvoked);
+
+            stage = StartupStage.Reminders;
             reminders = new ReminderController(dataDirectory, todos, lms, notificationCenter, startup.Executable, Dispatcher);
             if (reminderOnly)
             {
@@ -79,10 +91,16 @@ public partial class App : Application
                 Shutdown();
                 return;
             }
+
+            stage = StartupStage.History;
             history = new HistoryService(todos, lms, dataDirectory);
+
+            stage = StartupStage.Tray;
+            tray = new TrayIconService(TogglePanel, ShowEditor, ShowSettings, Shutdown);
+
+            stage = StartupStage.Start;
             todos.Changed += RefreshTodoViews;
             lms.Changed += RefreshLmsViews;
-            tray = new TrayIconService(TogglePanel, ShowEditor, ShowSettings, Shutdown);
             tray.DesktopGeometryChanged += OnDesktopGeometryChanged;
             tray.LocalDateMayHaveChanged += RefreshLocalDate;
             tray.Resumed += () => RefreshLms();
@@ -94,16 +112,63 @@ public partial class App : Application
             reminders.Start(background: false);
             RefreshLms();
         }
-        catch (Exception exception) when (exception is Win32Exception or InvalidOperationException or UnauthorizedAccessException
-            or IOException or WaitHandleCannotBeOpenedException)
+        catch (Exception exception)
         {
-            if (!reminderOnly && !cleanupOnly)
+            // Startup failures are fatal either way. Show only the stage and exception type, never its message.
+            if (!silentFailures && ClaimUnexpectedFailure())
             {
-                MessageBox.Show("DoIt을 시작할 수 없습니다. Windows에서 앱을 다시 열어 주세요.",
-                    "DoIt", MessageBoxButton.OK, MessageBoxImage.Error);
+                try
+                {
+                    MessageBox.Show("DoIt을 시작할 수 없습니다. Windows에서 앱을 다시 열어 주세요.\n\n진단: "
+                        + StartupDiagnostics.Describe(stage, exception), "DoIt", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+                catch (Exception)
+                {
+                    // The exit code below still identifies the stage.
+                }
             }
-            Shutdown(1);
+            Shutdown(StartupDiagnostics.ExitCode(stage));
         }
+    }
+
+    private async void RunUninstallCleanup()
+    {
+        var failure = CleanupFailure.None;
+        try
+        {
+            string executable = Environment.ProcessPath ?? Path.Combine(AppContext.BaseDirectory, "DoIt.Windows.exe");
+            try
+            {
+                if (!new ClosedReminderTask(executable).Replace(null))
+                {
+                    failure |= CleanupFailure.ReminderTask;
+                }
+            }
+            catch (Exception)
+            {
+                failure |= CleanupFailure.ReminderTask;
+            }
+            if (NotificationRegistration.Exists())
+            {
+                try
+                {
+                    await NotificationCenter.UnregisterAllWithSdkAsync();
+                }
+                catch (Exception)
+                {
+                    // Includes Windows App SDK load failures. The registry entries are removed directly below.
+                }
+            }
+            if (!NotificationRegistration.RemoveRemaining())
+            {
+                failure |= CleanupFailure.NotificationRegistration;
+            }
+        }
+        catch (Exception)
+        {
+            failure |= CleanupFailure.Unexpected;
+        }
+        Shutdown(StartupDiagnostics.CleanupExitCode(failure));
     }
 
     private void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)
@@ -154,13 +219,6 @@ public partial class App : Application
         {
             // The notice is best effort. The app still exits.
         }
-    }
-
-    private async void CleanInstalledRegistration(string executable)
-    {
-        var removedTask = new ClosedReminderTask(executable).Replace(null);
-        var removedNotifications = await NotificationCenter.RemoveInstalledRegistrationAsync();
-        Shutdown(removedTask && removedNotifications ? 0 : 1);
     }
 
     protected override void OnExit(ExitEventArgs e)

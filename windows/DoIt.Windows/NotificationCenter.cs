@@ -103,19 +103,17 @@ internal sealed class NotificationCenter : IDisposable
         }
     }
 
-    internal static async Task<bool> RemoveInstalledRegistrationAsync()
+    internal const string InstalledAppIdentifier = InstalledAppId;
+
+    // Uses only the Windows App SDK. The uninstall cleanup calls this inside a try block and then removes any
+    // remaining entries with NotificationRegistration, which has no Windows App SDK dependency.
+    internal static async Task UnregisterAllWithSdkAsync()
     {
-        try
-        {
-            Marshal.ThrowExceptionForHR(SetCurrentProcessExplicitAppUserModelID(InstalledAppId));
-            var registered = AppNotificationManager.Default;
-            bool cleared = true;
-            try { await registered.RemoveAllAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3)); }
-            catch (Exception error) when (IsUnavailable(error) || error is TimeoutException) { cleared = false; }
-            registered.UnregisterAll();
-            return cleared;
-        }
-        catch (Exception error) when (IsUnavailable(error)) { return false; }
+        Marshal.ThrowExceptionForHR(SetCurrentProcessExplicitAppUserModelID(InstalledAppId));
+        var registered = AppNotificationManager.Default;
+        try { await registered.RemoveAllAsync().AsTask().WaitAsync(TimeSpan.FromSeconds(3)); }
+        catch (Exception error) when (IsUnavailable(error) || error is TimeoutException) { }
+        registered.UnregisterAll();
     }
 
     private void OnInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args) => HandleArguments(args.Arguments);

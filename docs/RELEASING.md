@@ -158,6 +158,26 @@ gh release download windows-v1.0.0-1 --repo prestige-kim/DoIt --pattern manifest
 
 검증 PC 브라우저에서 GitHub에 로그인한 뒤 `https://github.com/prestige-kim/DoIt/releases`의 초안에서 설치 파일을 눌러 받습니다. PowerShell `Get-FileHash <파일> -Algorithm SHA256`을 `SHA256SUMS.txt`와 비교하고, 설치·사용권 동의·첫 실행 경고·할 일 저장·알림·재실행·덮어쓰기 설치·제거를 확인합니다. 실패하면 원인을 고쳐 2단계(내보내기·push)를 다시 하고 **빌드 번호를 올려** 3단계를 다시 실행합니다. 실패한 초안은 게시하지 않고 삭제합니다(`gh release delete windows-v1.0.0-1 --repo prestige-kim/DoIt`). 검증하지 못한 아키텍처는 공개하지 않습니다.
 
+#### 제거 확인
+
+제거(설정 → 앱 → DoIt) 뒤 `%LOCALAPPDATA%\DoIt`(데이터, 일부러 남김)을 지우고 아래로 남은 항목을 확인합니다. 제거 프로그램은 알림 등록 정리(`--uninstall-cleanup`)가 실패해도 앱 파일·바로가기·HKCU 항목·Run 값 제거를 계속하고, 끝에 "알림 등록 정리를 끝내지 못했습니다 (코드 N)"를 보여 줍니다. 코드 31은 알림 예약, 32는 알림 등록, 34는 예상 못 한 오류(조합은 합)입니다.
+
+```powershell
+[ordered]@{
+  '앱 폴더'        = Test-Path "$env:LOCALAPPDATA\Programs\DoIt"
+  '데이터 폴더'    = Test-Path "$env:LOCALAPPDATA\DoIt"
+  '시작 메뉴'      = Test-Path "$env:APPDATA\Microsoft\Windows\Start Menu\Programs\DoIt.lnk"
+  '설치 목록'      = Test-Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Uninstall\DoIt.Windows'
+  '로그인 시 시작'  = $null -ne (Get-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name DoIt -ErrorAction SilentlyContinue)
+  '알림 예약'      = $null -ne (Get-ScheduledTask -TaskName 'DoIt.DueReminder.*' -ErrorAction SilentlyContinue)
+  '알림 등록'      = Test-Path 'HKCU:\Software\Classes\AppUserModelId\com.personal.doit.Windows'
+  '알림 COM 등록'  = [bool](Get-ChildItem 'HKCU:\Software\Classes\CLSID' -ErrorAction SilentlyContinue | Where-Object { (Get-ItemProperty -LiteralPath "$($_.PSPath)\LocalServer32" -ErrorAction SilentlyContinue).'(default)' -like '*DoIt.Windows.exe*' })
+  '알림 아이콘 캐시' = Test-Path "$env:LOCALAPPDATA\Microsoft\WindowsAppSDK\com.personal.doit.Windows.png"
+}
+```
+
+모두 `False`면 깨끗합니다. 알림 등록 위치는 Windows App SDK 소스(`dev/AppNotifications/AppNotificationUtility.cpp`, `ShellLocalization.cpp`)의 미패키지 앱 경로입니다. DoIt은 AppUserModelID를 직접 지정하므로 `AppUserModelId\com.personal.doit.Windows`(값 `CustomActivator`)와 그 GUID의 `CLSID\{GUID}\LocalServer32`, 아이콘 캐시를 씁니다. 개발 실행본은 `com.personal.doit.Windows.Dev`입니다. SDK가 알림 플랫폼 쪽(`PushNotifications_RegisterFullTrustApplication`)에 남기는 내부 등록의 위치는 미확인입니다.
+
 ### 5. 초안 게시
 
 검증을 마친 초안을 그대로 게시합니다. 게시하면 workflow가 빌드한 공개 커밋에 태그가 생깁니다.
@@ -178,8 +198,10 @@ mkdir <재다운로드-폴더> && cd <재다운로드-폴더>
 for f in DoIt-Windows-1.0.0-1-x64-Setup.exe DoIt-Windows-1.0.0-1-arm64-Setup.exe SHA256SUMS.txt; do
   curl -fL -o "$f" "https://github.com/prestige-kim/DoIt/releases/download/windows-v1.0.0-1/$f"
 done
-shasum -a 256 -c SHA256SUMS.txt
+tr -d '\r' < SHA256SUMS.txt | shasum -a 256 -c -
 ```
+
+(1.0.0-1 후보의 `SHA256SUMS.txt`는 Windows 줄바꿈(CRLF)이라 `tr`로 지운 뒤 확인합니다. 이후 후보는 LF로 만듭니다.)
 
 이어서 다운로드 설정 도구로 manifest와 대조합니다(아래 7단계의 `--verify-file`). 어느 하나라도 다르면 다운로드 설정을 켜지 않습니다.
 
