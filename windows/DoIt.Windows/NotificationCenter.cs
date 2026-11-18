@@ -72,7 +72,17 @@ internal sealed class NotificationCenter : IDisposable
                 {
                     AppNotificationSetting.Enabled => null,
                     null => "Windows 알림 센터에 DoIt을 등록하지 못했습니다.",
-                    _ => "Windows 설정에서 DoIt 알림을 허용해 주세요."
+                    AppNotificationSetting.DisabledForUser =>
+                        "Windows 알림이 꺼져 있습니다. 설정 → 시스템 → 알림에서 '알림'을 켜 주세요.",
+                    AppNotificationSetting.DisabledForApplication =>
+                        "DoIt 알림이 꺼져 있습니다. 설정 → 시스템 → 알림의 앱 목록에서 DoIt을 켜 주세요.",
+                    AppNotificationSetting.DisabledByGroupPolicy =>
+                        "이 PC의 관리 정책이 앱 알림을 막고 있습니다. PC 관리자에게 문의해 주세요.",
+                    AppNotificationSetting.DisabledByManifest =>
+                        "DoIt 설치 구성 문제로 알림이 꺼져 있습니다. (DisabledByManifest)",
+                    AppNotificationSetting.Unsupported =>
+                        "이 Windows에서는 앱 알림을 사용할 수 없습니다. (Unsupported)",
+                    var other => $"Windows 설정에서 DoIt 알림을 허용해 주세요. ({other})"
                 };
             }
             catch (Exception error) when (IsUnavailable(error))

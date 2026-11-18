@@ -8,6 +8,10 @@
     <Window.Resources>
         <!-- 달력 칸: 평소에는 투명, 마우스를 올리면 옅은 배경, 선택된 날은 코드에서 2px 테두리를 준다. -->
         <Style x:Key="CalendarCellStyle" TargetType="Button">
+            <!-- 명시 스타일은 Fluent 테마의 Button 글자색을 이어받지 않고 고전 테마의 검정을 쓴다.
+                 패널의 다른 글자와 같은 창 글자색을 따라 밝은·어두운 모드 모두에서 보이게 한다. -->
+            <Setter Property="Foreground"
+                    Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" />
             <Setter Property="Height" Value="36" />
             <Setter Property="MinWidth" Value="0" />
             <Setter Property="MinHeight" Value="0" />
