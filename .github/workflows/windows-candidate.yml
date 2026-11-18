@@ -1,0 +1,96 @@
+name: Windows 설치 후보 (수동 · 초안 릴리스)
+
+# 수동 실행 전용. GitHub의 Windows 서버에서 x64·Arm64 설치 파일을 만들어
+# 초안(draft) 릴리스에 올린다. 초안은 저장소 관리자만 볼 수 있고,
+# 실기기 검증을 마친 뒤 같은 파일을 그대로 게시한다.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Windows 버전 (예: 1.0.0)'
+        required: true
+        default: '1.0.0'
+      build:
+        description: '빌드 번호 (1~65535, 다시 만들 때마다 올림)'
+        required: true
+        default: '1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-candidate
+  cancel-in-progress: false
+
+jobs:
+  candidate:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ inputs.version }}
+      BUILD: ${{ inputs.build }}
+      DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+      DOTNET_NOLOGO: '1'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6.1.0
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: 입력과 태그 확인
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if ($env:VERSION -notmatch '^(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})\.(0|[1-9]\d{0,4})$') { throw '버전은 x.y.z 숫자 형식이어야 합니다.' }
+          if ($env:BUILD -notmatch '^[1-9]\d{0,4}$' -or [int]$env:BUILD -gt 65535) { throw '빌드 번호는 1~65535입니다.' }
+          $tag = "windows-v$($env:VERSION)-$($env:BUILD)"
+          gh release view $tag --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) { throw "$tag 릴리스가 이미 있습니다. 빌드 번호를 올려 주세요." }
+          $global:LASTEXITCODE = 0
+          "TAG=$tag" >> $env:GITHUB_ENV
+
+      - name: NSIS 준비
+        shell: pwsh
+        run: |
+          $nsis = Join-Path ${env:ProgramFiles(x86)} 'NSIS\makensis.exe'
+          if (-not (Test-Path $nsis)) { choco install nsis -y --no-progress; if ($LASTEXITCODE -ne 0) { throw 'NSIS 설치 실패' } }
+          & $nsis /VERSION
+          "MAKENSIS=$nsis" >> $env:GITHUB_ENV
+
+      - name: 자동 테스트
+        shell: pwsh
+        run: dotnet run --project windows/DoIt.Core.Tests/DoIt.Core.Tests.csproj
+
+      - name: 설치 후보 만들기
+        shell: pwsh
+        run: python windows/packaging/package_windows.py --version $env:VERSION --build $env:BUILD --output dist/windows-candidate --makensis $env:MAKENSIS
+
+      - name: 초안 릴리스에 올리기
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $out = 'dist/windows-candidate'
+          $files = @(
+            "$out/preview/downloads/DoIt-Windows-$($env:VERSION)-$($env:BUILD)-x64-Setup.exe",
+            "$out/preview/downloads/DoIt-Windows-$($env:VERSION)-$($env:BUILD)-arm64-Setup.exe",
+            "$out/preview/downloads/SHA256SUMS.txt",
+            "$out/manifest.json"
+          )
+          foreach ($file in $files) { if (-not (Test-Path $file)) { throw "빠진 파일: $file" } }
+          Get-Content "$out/preview/downloads/SHA256SUMS.txt"
+          $notes = @"
+          DoIt for Windows $($env:VERSION) (빌드 $($env:BUILD)) 검증용 초안입니다.
+
+          - Windows 11 x64·Arm64용 설치 파일입니다. 관리자 권한 없이 현재 Windows 계정에 설치됩니다.
+          - 코드 서명이 없어 처음 실행할 때 Windows의 PC 보호 경고가 나타날 수 있습니다.
+          - 받은 파일은 PowerShell ``Get-FileHash <파일> -Algorithm SHA256`` 결과를 SHA256SUMS.txt와 비교해 확인합니다.
+          "@
+          gh release create $env:TAG @files --repo $env:GITHUB_REPOSITORY --draft --target $env:GITHUB_SHA `
+            --title "DoIt for Windows $($env:VERSION) ($($env:BUILD))" --notes $notes

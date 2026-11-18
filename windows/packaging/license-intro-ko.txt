@@ -1,0 +1,10 @@
+DoIt 사용권 안내
+
+DoIt은 MIT 라이선스로 배포되는 무료 소프트웨어입니다. 이 설치 파일에는 DoIt과 함께 아래 Microsoft 구성요소가 들어 있습니다.
+
+- .NET 런타임, Windows 데스크톱 런타임(WPF): MIT 라이선스
+- Windows App SDK(알림 기능): 아래에 원문을 실은 Microsoft 소프트웨어 사용 조건
+
+'동의함'을 누르면 DoIt의 MIT 라이선스와, 함께 설치되는 Microsoft 구성요소의 사용 조건(아래 원문)에 동의하는 것입니다. 모든 원문은 설치 폴더의 Licenses 폴더에도 들어 있습니다.
+
+DoIt은 어떠한 보증도 없이 "있는 그대로" 제공됩니다.

@@ -106,3 +106,126 @@ scripts/release.sh --verify dist/DoIt-<버전>-<빌드>/release.manifest.json
 Sparkle 로컬 8→9 업데이트와 이 Mac의 정식 원격 1.0.0→1.0.1 업데이트에서 사용자 보고 추가 암호·허용 창은 0번이며 기존 내용·알림도 유지됐습니다. 설정 전체 항목과 다른 Mac의 설치·업데이트는 확인하지 못했습니다. 현재 공개 앱 릴리스는 1.0.2(13)이며, 이 버전으로의 실제 앱 업데이트는 별도 실측이 필요합니다. 번들 gate는 defaults·환경·실행 인자로 활성화할 수 없으며 학생 UI 스위치가 아닙니다.
 
 랜딩 저장소/Issues 주소·다운로드·Pages는 공개됐습니다. Apple 배경/메뉴바 자산의 공개 사용 조건 또는 대체 자산, 최종 환경별 QA, NotchNotification 고지는 미확인 과제입니다. 출처 고지는 공개 재배포 권리 확인을 뜻하지 않습니다.
+
+## Windows 릴리스
+
+Windows 버전은 Mac과 **별도 번호**를 씁니다. 첫 공개는 1.0.0(빌드 1)이며 Release 태그는 `windows-v<버전>-<빌드>`, 설치 파일은 `DoIt-Windows-<버전>-<빌드>-{x64,arm64}-Setup.exe`입니다. 위의 Mac 도구(`release.sh`)·appcast는 Windows에 쓰지 않습니다. Windows 앱에는 자동 업데이트가 없고, 사용자가 새 설치 파일을 받아 실행하면 데이터를 유지한 채 덮어씁니다.
+
+### 버전 정책
+
+- 버전은 숫자 세 부분 `x.y.z`, 빌드는 1~65535 정수입니다. Mac 버전과 맞출 필요가 없습니다.
+- 한 번 게시한 태그·파일 이름·번호는 **다시 쓰지 않습니다**. 이미 올린 EXE를 같은 이름으로 교체하지 않습니다.
+- 후보 검증이나 업로드가 실패해 다시 빌드하면 버전이 같아도 **빌드 번호를 1 올립니다**(예: 1.0.0-1 실패 → 1.0.0-2). 기능이 바뀌면 버전을 올리고 빌드 번호는 그대로 계속 늘립니다.
+
+### 서명과 첫 실행 경고
+
+설치 파일과 앱은 **코드 서명이 없습니다**. 그래서 브라우저가 다운로드를 경고하거나 Windows SmartScreen이 "Windows의 PC 보호" 창을 띄울 수 있습니다. 랜딩 설치 안내에 "유지" → "추가 정보" → "실행" 순서와 `Get-FileHash`로 SHA-256을 확인하는 방법을 적어 둡니다. 서명이 없다는 사실을 숨기거나 경고를 끄는 방법을 안내하지 않습니다. `package_windows.py`는 설치 파일에 서명 정보가 있으면 오히려 거부합니다(무서명 NSIS 런처만 허용).
+
+### 1. 준비물
+
+- 공개 저장소 `prestige-kim/DoIt`에 push·Release·Actions 실행을 할 수 있는 `gh` 로그인(Mac 쪽).
+- 실기기 검증용 **Windows 11 PC**(가능하면 x64와 Arm64 각각). 이 PC에는 브라우저와 GitHub 로그인만 있으면 됩니다. Arm64 기기가 없으면 x64만 공개합니다(아래 `--only`).
+- 설치 파일은 GitHub의 Windows 서버에서 `.github/workflows/windows-candidate.yml`이 만듭니다. Windows App SDK 알림 매니페스트 병합에 Windows의 `mt.exe`가 필요해서 Mac에서는 만들 수 없습니다.
+
+### 2. 공개 소스 내보내기·push
+
+workflow는 공개 저장소의 소스로 빌드하므로 먼저 공개 소스를 맞춥니다.
+
+```sh
+scripts/export-public.sh <공개용-폴더>
+```
+
+공개용 폴더에서 바뀐 파일을 검토하고 **고른 파일만** 커밋합니다. 커밋 메시지는 영어 한 줄이며 AI 공동 작성자 트레일러를 넣지 않습니다. 원본 저장소의 Git 이력은 push하지 않습니다. Pages는 수동 실행이라 push만으로 소개 페이지가 바뀌지는 않습니다.
+
+### 3. 후보 만들기 (GitHub Actions → 초안 릴리스)
+
+```sh
+gh workflow run windows-candidate.yml --repo prestige-kim/DoIt --ref main -f version=1.0.0 -f build=1
+gh run watch --repo prestige-kim/DoIt $(gh run list --repo prestige-kim/DoIt --workflow windows-candidate.yml --limit 1 --json databaseId --jq '.[0].databaseId')
+```
+
+workflow는 C# 테스트 → x64·Arm64 설치 파일 생성(PE 아키텍처·무서명 확인) → **초안(draft) 릴리스** `windows-v<버전>-<빌드>`에 EXE 2개, `SHA256SUMS.txt`, `manifest.json`을 올립니다. 같은 태그가 이미 있으면 멈춥니다. 초안은 저장소 관리자만 볼 수 있고, 게시하면 같은 파일이 그대로 공개됩니다.
+
+`manifest.json`은 Mac으로 받아 둡니다. 다운로드 설정 도구가 읽습니다.
+
+```sh
+gh release download windows-v1.0.0-1 --repo prestige-kim/DoIt --pattern manifest.json --dir <후보-폴더>
+```
+
+(대안) Windows PC에 .NET 10 SDK·Python 3·NSIS를 설치해 `python windows\packaging\package_windows.py --version 1.0.0 --build 1 --output <후보-폴더>`로 직접 만들 수도 있습니다. 이때는 `preview/` 검증용 랜딩 사본도 함께 생기며, 5단계의 Release는 `gh release create`로 직접 만듭니다.
+
+### 4. 실기기 검증
+
+검증 PC 브라우저에서 GitHub에 로그인한 뒤 `https://github.com/prestige-kim/DoIt/releases`의 초안에서 설치 파일을 눌러 받습니다. PowerShell `Get-FileHash <파일> -Algorithm SHA256`을 `SHA256SUMS.txt`와 비교하고, 설치·사용권 동의·첫 실행 경고·할 일 저장·알림·재실행·덮어쓰기 설치·제거를 확인합니다. 실패하면 원인을 고쳐 2단계(내보내기·push)를 다시 하고 **빌드 번호를 올려** 3단계를 다시 실행합니다. 실패한 초안은 게시하지 않고 삭제합니다(`gh release delete windows-v1.0.0-1 --repo prestige-kim/DoIt`). 검증하지 못한 아키텍처는 공개하지 않습니다.
+
+### 5. 초안 게시
+
+검증을 마친 초안을 그대로 게시합니다. 게시하면 workflow가 빌드한 공개 커밋에 태그가 생깁니다.
+
+```sh
+gh release delete-asset windows-v1.0.0-1 manifest.json --repo prestige-kim/DoIt --yes
+gh release edit windows-v1.0.0-1 --repo prestige-kim/DoIt --draft=false
+```
+
+x64만 공개할 때는 게시 전에 arm64 EXE를 지우고(`gh release delete-asset ... DoIt-Windows-1.0.0-1-arm64-Setup.exe`), `SHA256SUMS.txt`를 x64 한 줄만 남긴 사본으로 바꿉니다(`gh release upload ... SHA256SUMS.txt --clobber`). 노트에는 무서명·SmartScreen 경고·지원 환경이 들어 있고 AI 트레일러·개인 정보는 없습니다.
+
+### 6. 비인증 재다운로드 대조
+
+로그인 정보 없이(`gh`가 아닌 `curl`) 공개 주소에서 다시 받아, 올린 파일과 같은지 크기·해시로 확인합니다.
+
+```sh
+mkdir <재다운로드-폴더> && cd <재다운로드-폴더>
+for f in DoIt-Windows-1.0.0-1-x64-Setup.exe DoIt-Windows-1.0.0-1-arm64-Setup.exe SHA256SUMS.txt; do
+  curl -fL -o "$f" "https://github.com/prestige-kim/DoIt/releases/download/windows-v1.0.0-1/$f"
+done
+shasum -a 256 -c SHA256SUMS.txt
+```
+
+이어서 다운로드 설정 도구로 manifest와 대조합니다(아래 7단계의 `--verify-file`). 어느 하나라도 다르면 다운로드 설정을 켜지 않습니다.
+
+### 7. 다운로드 설정 켜기
+
+`scripts/windows_release_config.py`가 manifest를 읽어 `site/windows-download.js`의 `WINDOWS_RELEASE` 한 줄만 공개 값으로 바꿉니다. 기본은 **미리보기**(바뀔 줄만 출력, 파일 그대로)이고 `--write`일 때만 씁니다.
+
+```sh
+# 미리보기 + 재다운로드 파일 대조
+python3 scripts/windows_release_config.py <manifest.json> \
+  --verify-file <재다운로드-폴더>/DoIt-Windows-1.0.0-1-x64-Setup.exe <재다운로드-폴더>/DoIt-Windows-1.0.0-1-arm64-Setup.exe
+# 확인 후 쓰기
+python3 scripts/windows_release_config.py <manifest.json> --verify-file <같은 파일들> --write
+# Arm64를 검증하지 못했을 때
+python3 scripts/windows_release_config.py <manifest.json> --only x64 --verify-file <x64 파일> --write
+```
+
+도구는 버전 `x.y.z`, 빌드 1~65535, 자산 파일명 형식, SHA-256 64자리 16진수, 아키텍처 이름을 검사하고, URL을 `site/config.js`의 owner·repository로 만든 GitHub Releases 주소(`verifiedWindowsDownload`가 기대하는 주소)와 똑같이 맞춥니다. `node`가 있으면 바뀐 내용의 임시 사본에서 `verifiedWindowsDownload()`를 실제로 실행해 결과가 기대와 같은지 확인하고, 없으면 그 검사만 건너뜁니다. 하나라도 실패하거나 `WINDOWS_RELEASE` 한 줄 형식을 찾지 못하면 이유를 출력하고 종료 코드 1로 끝나며 파일은 바뀌지 않습니다.
+
+`git diff site/windows-download.js`로 한 줄만 바뀐 것을 확인하고 원본 저장소에 커밋합니다.
+
+### 8. README·공개 반영·Pages
+
+1. 공개 README에 Windows 다운로드 안내(랜딩 Windows 탭 링크, 지원 환경, 무서명 경고, SHA-256 확인)를 추가하고 커밋합니다.
+2. 2단계처럼 다시 내보내기 → 고른 파일만 커밋·push합니다.
+3. Pages는 자동으로 돌지 않으므로 수동 실행합니다.
+
+```sh
+gh workflow run pages.yml --repo prestige-kim/DoIt --ref main
+gh run list --repo prestige-kim/DoIt --workflow pages.yml --limit 1
+```
+
+### 9. 공개 페이지 재확인
+
+`https://prestige-kim.github.io/DoIt/#windows-install`을 새로 고침(캐시를 피하려면 강력 새로 고침)해 Windows 탭에 켠 아키텍처의 버튼과 SHA-256만 보이는지 확인합니다. 버튼으로 다시 받은 파일의 해시가 페이지·`SHA256SUMS.txt`와 같은지 확인합니다. Mac 탭의 다운로드·appcast가 그대로인지도 봅니다.
+
+### 10. Contributors 확인
+
+```sh
+gh api repos/prestige-kim/DoIt/contributors --jq '.[].login'
+```
+
+공개 저장소 Contributors에 AI 계정이 없는지 확인합니다. 있으면 해당 커밋을 찾아 원인을 기록하고 다음 공개 절차에서 바로잡습니다.
+
+### 실패했을 때
+
+- Release 업로드 전 실패: 공개 페이지는 그대로이므로 고친 뒤 빌드 번호를 올려 다시 합니다.
+- Release 후 재다운로드 불일치: `WINDOWS_RELEASE`를 켜지 않습니다. 새 빌드 번호로 다시 올리고 잘못된 Release는 내용을 바꾸지 말고 초안·삭제 여부를 따로 판단합니다.
+- 공개 후 문제가 생기면 `WINDOWS_RELEASE`를 `releasePublished: false`로 되돌린 내용을 내보내기·push·Pages 실행으로 먼저 반영해 버튼을 끕니다.

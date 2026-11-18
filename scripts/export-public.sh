@@ -25,7 +25,10 @@ STATE = '.doit-export-state.json'
 REQUIRED = {'project.yml', '.gitignore', 'README.md', 'LICENSE',
             'THIRD_PARTY_NOTICES.md', 'docs/PRD.md', 'docs/ARCHITECTURE.md',
             'docs/DESIGN.md', 'docs/RELEASING.md', 'scripts/export-public.sh'}
-ROOTS = {'DoIt', 'DoItTests', 'scripts', 'site', '.github'}
+ROOTS = {'DoIt', 'DoItTests', 'scripts', 'site', '.github', 'windows'}
+# Windows(.NET) 빌드·IDE 산출물. windows/ 아래에서만 금지한다.
+WINDOWS_BUILD_PARTS = {'bin', 'obj', '.vs', 'publish', 'TestResults'}
+WINDOWS_BUILD_SUFFIXES = {'.user', '.suo', '.exe', '.dll', '.pdb', '.msi', '.zip'}
 FIXTURE = 'DoItTests/Fixtures/fake-feed.ics'
 FORBIDDEN_PARTS = {'.git', 'build', 'dist', 'DerivedData', 'xcuserdata',
                    'archive', 'node_modules', '.ssh', '.aws', '.codex', '.agents'}
@@ -71,6 +74,9 @@ def path_check(name, public_only=True):
             any(name == prefix or name.startswith(prefix + '/')
                 for prefix in ('docs/tasks', 'docs/reports', 'docs/handoff'))):
         refuse('private-path', name)
+    if p.parts[0] == 'windows' and (any(x in WINDOWS_BUILD_PARTS for x in p.parts) or
+                                    p.suffix.lower() in WINDOWS_BUILD_SUFFIXES):
+        refuse('windows-build-output', name)
     if (p.name in PRIVATE_NAMES or p.name.startswith('.env.') or
             p.suffix.lower() in KEY_SUFFIXES or
             re.search(r'(?:sparkle.*private|private.*sparkle|eddsa.*private|\.p8$)', name, re.I)):
@@ -133,7 +139,8 @@ def scan(name, data):
     n = len(FEED.findall(feed_data))
     if n:
         failures.append(('personal-feed', n))
-    if name in {'README.md', 'docs/PRD.md', 'docs/ARCHITECTURE.md', 'docs/DESIGN.md', 'docs/RELEASING.md'}:
+    if name in {'README.md', 'docs/PRD.md', 'docs/ARCHITECTURE.md', 'docs/DESIGN.md', 'docs/RELEASING.md',
+                'windows/README.md'}:
         n = len(INTERNAL.findall(data))
         if n:
             failures.append(('internal-document-reference', n))

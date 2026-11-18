@@ -4,12 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <meta name="description" content="노치에서 할 일과 LMS 과제를 확인하는 Mac 앱, DoIt.">
+  <meta name="description" content="Mac의 노치와 Windows의 작업 표시줄에서 할 일과 LMS 과제를 확인하는 DoIt.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-src 'none'">
-  <title>DoIt — Mac용 할 일 앱</title>
+  <title>DoIt — 할 일과 과제</title>
   <link rel="icon" type="image/svg+xml" href="./assets/mark.svg">
   <link rel="stylesheet" href="./styles.css?v=20261111-fit-demo">
-  <script type="module" src="./app.js?v=20261111-fit-demo"></script>
+  <link rel="stylesheet" href="./windows.css?v=20261118-install">
+  <script type="module" src="./app.js?v=20261112-platforms"></script>
+  <script type="module" src="./platforms.js?v=20261118-app"></script>
 </head>
 <body>
 <a class="skip-link" href="#main">본문으로 건너뛰기</a>
@@ -26,16 +28,22 @@
 </defs></svg>
 <header class="site-header">
   <a class="brand" href="#top" aria-label="DoIt 첫 화면"><img src="./assets/mark.svg" width="34" height="34" alt=""><span>DoIt</span></a>
-  <nav aria-label="주 메뉴"><a href="#experience">체험</a><a class="nav-cta" href="#install">설치 안내</a></nav>
+  <nav aria-label="주 메뉴"><a data-platform-link="experience" href="#experience">체험</a><a class="nav-cta" data-platform-link="install" href="#install">설치 안내</a></nav>
 </header>
 <main id="main">
   <section class="hero" id="top" aria-labelledby="hero-title">
     <h1 id="hero-title">할 일과 과제,<br class="small-break"> DoIt에서</h1>
-    <p class="hero-copy">Mac용 할 일 앱 DoIt</p>
-    <div class="hero-actions"><button class="button primary js-only" data-open-notch>체험하기</button><a class="text-link" href="#install">설치 안내 <span aria-hidden="true">›</span></a></div>
+    <p class="hero-copy" id="platform-hero-copy">Mac용 할 일 앱 DoIt</p>
+    <div class="hero-actions"><button class="button primary js-only" id="platform-hero-demo" data-open-notch>체험하기</button><a class="text-link" data-platform-link="install" href="#install">설치 안내 <span aria-hidden="true">›</span></a></div>
 
   </section>
 
+  <div class="platform-switch" id="platform-switch" role="tablist" aria-label="DoIt 운영체제" hidden>
+    <button type="button" id="tab-mac" role="tab" aria-selected="true" aria-controls="platform-mac">Mac</button>
+    <button type="button" id="tab-windows" role="tab" aria-selected="false" aria-controls="platform-windows" tabindex="-1">Windows</button>
+  </div>
+
+  <div id="platform-mac" role="tabpanel" aria-labelledby="tab-mac">
   <section class="focus-intro content-width" aria-labelledby="focus-title">
     <h2 id="focus-title"><span>화면은 그대로,</span><span>할 일은 바로</span></h2>
     <p><span>작업 도중 할 일을 추가하기 위해 화면을 넘기는 대신,</span><span>어느 화면에서든 노치로 마우스만 옮기세요.</span></p>
@@ -86,7 +94,7 @@
         <li><div class="install-drawing folder-drawing" aria-hidden="true"><img src="./assets/mark.svg" alt="" width="54" height="54"><span>→</span><div class="folder-icon"><i>앱</i></div></div><h3>응용 프로그램으로 이동</h3><p>DoIt.app을 옮깁니다.</p></li>
         <li><div class="install-drawing launch-drawing" aria-hidden="true"><span class="launch-notch"><i></i><i></i><i></i></span><span class="launch-check">✓</span></div><h3>실행</h3><p>노치에 마우스를 올립니다.</p></li>
       </ol>
-      <p class="compatibility">Mac 전용 · macOS 14 이상</p>
+      <p class="compatibility">macOS 14 이상</p>
       <section class="first-launch" aria-labelledby="first-launch-title">
         <div class="first-launch-intro"><span>처음 실행할 때</span><h3 id="first-launch-title">경고가 나타나면</h3></div>
         <div class="first-launch-content">
@@ -100,6 +108,170 @@
       </section>
     </div>
   </section>
+  </div>
+
+  <div id="platform-windows" role="tabpanel" aria-labelledby="tab-windows" hidden>
+    <section class="focus-intro content-width" aria-labelledby="windows-focus-title">
+      <h2 id="windows-focus-title"><span>작업 표시줄에서</span><span>바로 여는 할 일</span></h2>
+      <p>알림 영역의 DoIt을 누르면 목록이 열립니다.<br>달력을 보고, 마감할 일도 같은 패널에서 확인하세요.</p>
+    </section>
+    <section class="story windows-story" id="windows-experience" aria-label="Windows용 DoIt 체험">
+      <p class="windows-feature-caption" id="windows-caption">작업 표시줄에서 DoIt 아이콘을 눌러 보세요.</p>
+      <div class="windows-stage" id="windows-stage">
+        <section class="windows-panel" id="windows-panel" aria-label="예시 할 일 패널" hidden>
+          <header class="windows-panel-header">
+            <strong>DoIt</strong>
+            <div class="windows-panel-tools">
+              <button type="button" id="windows-calendar" aria-pressed="false" aria-label="월간 달력 보기">달력</button>
+              <button type="button" data-windows-dialog="editor">전체 편집기…</button>
+              <button type="button" data-windows-dialog="settings">설정</button>
+            </div>
+          </header>
+          <div class="windows-calendar" id="windows-calendar-view" hidden>
+            <div class="windows-month-bar">
+              <strong id="windows-month"></strong>
+              <div class="windows-month-tools">
+                <button type="button" id="windows-prev-month" aria-label="이전 달">‹</button>
+                <button type="button" id="windows-today">오늘</button>
+                <button type="button" id="windows-next-month" aria-label="다음 달">›</button>
+              </div>
+            </div>
+            <div class="windows-weekdays" aria-hidden="true"><span>일</span><span>월</span><span>화</span><span>수</span><span>목</span><span>금</span><span>토</span></div>
+            <div class="windows-calendar-grid" id="windows-days" role="group" aria-label="예시 달력 날짜"></div>
+          </div>
+          <div class="windows-quick-add" id="windows-quick-add">
+            <input type="text" id="windows-input" aria-label="할 일 제목" placeholder="할 일 입력…" maxlength="200" autocomplete="off">
+            <button type="button" id="windows-due" aria-label="마감 날짜, 오늘">오늘</button>
+            <span class="windows-due-text" id="windows-due-text" hidden></span>
+            <button type="button" id="windows-add">추가</button>
+          </div>
+          <p class="windows-add-error" id="windows-add-error" hidden></p>
+          <p class="windows-past-day" id="windows-past-day" hidden>지난 날짜는 보기만 할 수 있어요.</p>
+          <div class="windows-list" id="windows-list"></div>
+        </section>
+        <section class="windows-dialog" id="windows-dialog" role="dialog" aria-labelledby="windows-dialog-title" hidden>
+          <header class="windows-dialog-header"><strong id="windows-dialog-title"></strong><button type="button" id="windows-close-dialog" aria-label="예시 창 닫기"><svg aria-hidden="true"><use href="#i-close"/></svg></button></header>
+          <div id="windows-editor" class="windows-dialog-content" hidden>
+            <div class="windows-editor-bar">
+              <label for="windows-search">제목 검색</label>
+              <input type="search" id="windows-search" autocomplete="off">
+              <select id="windows-sort" aria-label="정렬">
+                <option value="due">마감일순</option>
+                <option value="added">추가순</option>
+              </select>
+            </div>
+            <ul class="windows-editor-rows" id="windows-editor-rows" aria-label="편집할 할 일 목록"></ul>
+            <p class="windows-empty" id="windows-editor-empty" hidden>찾는 할 일이 없어요</p>
+            <div class="windows-batch" id="windows-batch" hidden>
+              <span id="windows-batch-count"></span>
+              <button type="button" data-windows-batch="done">완료</button>
+              <button type="button" data-windows-batch="undone">미완료</button>
+              <button type="button" class="is-danger" id="windows-batch-delete" data-windows-batch="delete">삭제</button>
+              <button type="button" data-windows-batch="clear">선택 해제</button>
+            </div>
+          </div>
+          <div id="windows-settings" class="windows-dialog-content" hidden>
+            <div class="windows-tabs" role="tablist" aria-label="설정 항목">
+              <button type="button" role="tab" id="windows-tab-general" aria-controls="windows-pane-general" aria-selected="true">일반</button>
+              <button type="button" role="tab" id="windows-tab-lms" aria-controls="windows-pane-lms" aria-selected="false" tabindex="-1">LMS 연동</button>
+              <button type="button" role="tab" id="windows-tab-alerts" aria-controls="windows-pane-alerts" aria-selected="false" tabindex="-1">알림</button>
+              <button type="button" role="tab" id="windows-tab-history" aria-controls="windows-pane-history" aria-selected="false" tabindex="-1">기록 보관</button>
+              <button type="button" role="tab" id="windows-tab-storage" aria-controls="windows-pane-storage" aria-selected="false" tabindex="-1">저장 공간</button>
+            </div>
+            <ul class="windows-settings-list" id="windows-pane-general" role="tabpanel" aria-labelledby="windows-tab-general">
+              <li><strong>로그인 시 DoIt 시작</strong><span>Windows에 로그인하면 알림 영역에 DoIt이 켜집니다.</span></li>
+              <li><strong>DoIt 버전 · 새 버전 확인</strong><span>이 설치 안내 페이지를 열어 새 버전을 확인합니다. 새 설치 파일을 실행하면 할 일과 설정은 그대로 두고 앱만 바꿉니다.</span></li>
+            </ul>
+            <ul class="windows-settings-list" id="windows-pane-lms" role="tabpanel" aria-labelledby="windows-tab-lms" hidden>
+              <li><strong>LMS 연동</strong><span>개인 캘린더 피드로 과제와 마감일을 가져옵니다.</span></li>
+              <li><strong>피드 주소 입력 · 연결 해제…</strong><span>주소는 앱의 설정 창에서만 입력합니다. 이 체험에는 입력칸이 없습니다.</span></li>
+              <li><strong>가져올 기간 · 지금 새로고침</strong><span>몇 주 앞까지 가져올지 고르고, 필요할 때 바로 새로 고칩니다.</span></li>
+            </ul>
+            <ul class="windows-settings-list" id="windows-pane-alerts" role="tabpanel" aria-labelledby="windows-tab-alerts" hidden>
+              <li><strong>내 할 일 마감 알림 · LMS 과제 마감 알림</strong><span>오전 9시에 오늘 마감 건수를 알림 센터에 표시합니다.</span></li>
+              <li><strong>마감 알림 일시 중지</strong><span>잠시 알림을 끄고 다시 켤 수 있습니다.</span></li>
+              <li><strong>테스트 알림 보내기</strong><span>알림이 보이는지 바로 확인합니다.</span></li>
+            </ul>
+            <ul class="windows-settings-list" id="windows-pane-history" role="tabpanel" aria-labelledby="windows-tab-history" hidden>
+              <li><strong>기록 보관 기간</strong><span>6개월 · 1년 · 2년 · 정리 안 함</span></li>
+              <li><strong>지금 정리…</strong><span>백업 후 정리하거나 그냥 정리합니다.</span></li>
+              <li><strong>모든 기록 초기화…</strong><span>한 번 더 확인한 뒤 초기화합니다.</span></li>
+            </ul>
+            <ul class="windows-settings-list" id="windows-pane-storage" role="tabpanel" aria-labelledby="windows-tab-storage" hidden>
+              <li><strong>저장 공간</strong><span>항목별 개수와 크기, 정리 대상, DoIt 메모리를 보여 줍니다.</span></li>
+              <li><strong>새로 계산</strong><span>지금 기준으로 다시 계산합니다.</span></li>
+            </ul>
+          </div>
+        </section>
+        <div class="windows-taskbar" aria-label="Windows 작업 표시줄 예시">
+          <div class="windows-taskbar-center" aria-hidden="true"><i class="windows-mark"></i><span class="windows-search">⌕ <span>검색</span></span><i class="windows-folder"></i></div>
+          <button type="button" id="windows-tray" aria-label="DoIt 트레이 열기" aria-controls="windows-panel" aria-expanded="false"><img src="./assets/mark.svg" width="22" height="22" alt=""></button>
+        </div>
+      </div>
+      <div class="windows-demo-footer"><p>예시 데이터로만 동작합니다.</p><button type="button" id="windows-reset">체험 초기화</button></div>
+      <p class="sr-only" id="windows-demo-status" role="status" aria-live="polite"></p>
+    </section>
+    <section class="install-section windows-install" id="windows-install" aria-labelledby="windows-install-title">
+      <div class="content-width">
+        <div class="install-heading">
+          <h2 id="windows-install-title">Windows 설치</h2>
+          <div class="release-state windows-release-state">
+            <p id="windows-release-message">Windows 다운로드 준비 중</p>
+            <div class="windows-downloads" id="windows-downloads" hidden>
+              <a class="button primary" id="windows-download-x64" hidden>x64용 다운로드</a>
+              <a class="button primary" id="windows-download-arm64" hidden>Arm64용 다운로드</a>
+            </div>
+          </div>
+        </div>
+        <ol class="windows-install-steps">
+          <li><h3>시스템 종류 확인</h3><p><strong>설정 → 시스템 → 정보</strong>에서 시스템 종류를 확인하고 x64 또는 Arm64용 설치 파일을 고릅니다.</p></li>
+          <li><h3>설치 파일 열기</h3><p>다운로드한 DoIt 설치 파일을 열고 화면의 안내를 따릅니다. 현재 Windows 계정에 설치됩니다.</p></li>
+          <li><h3>트레이에서 열기</h3><p>시작 메뉴에서 DoIt을 실행한 뒤 시계 옆 DoIt 아이콘을 누릅니다. 아이콘이 안 보이면 숨겨진 아이콘 메뉴를 여세요.</p></li>
+        </ol>
+        <p class="compatibility">Windows 11 · x64 / Arm64</p>
+        <section class="first-launch windows-first-launch" aria-labelledby="windows-first-launch-title">
+          <div class="first-launch-intro"><span>처음 받을 때</span><h3 id="windows-first-launch-title">경고가 나타나면</h3></div>
+          <div class="first-launch-content">
+            <!-- 예시 그림: 직접 그린 단순 도식입니다. 실제 Windows 기기에서 찍은 화면으로 나중에 교체할 자리입니다. -->
+            <figure class="windows-warning-figure">
+              <div class="windows-warning-drawings" aria-hidden="true">
+                <div class="win-sketch win-sketch-download">
+                  <span class="win-sketch-step">1</span>
+                  <div class="win-sketch-file"><i></i><div><b>DoIt-Windows-…-Setup.exe</b><small>일반적으로 다운로드되지 않는 파일입니다</small></div></div>
+                  <div class="win-sketch-menu"><span class="win-sketch-pick">유지</span><span>삭제</span></div>
+                </div>
+                <div class="win-sketch win-sketch-guard">
+                  <span class="win-sketch-step">2</span>
+                  <b class="win-sketch-title">Windows의 PC 보호</b>
+                  <span class="win-sketch-link">추가 정보</span>
+                  <dl><dt>앱</dt><dd>DoIt-Windows-…-Setup.exe</dd><dt>게시자</dt><dd>알 수 없는 게시자</dd></dl>
+                  <div class="win-sketch-buttons"><span class="win-sketch-pick">실행</span><span>실행 안 함</span></div>
+                </div>
+              </div>
+              <figcaption>예시 그림 · 실제 문구와 모양은 Windows·브라우저 버전에 따라 다를 수 있습니다.</figcaption>
+            </figure>
+            <div class="first-launch-steps"><h4>이렇게 열어 주세요</h4><ol>
+              <li>브라우저가 <strong>‘일반적으로 다운로드되지 않는 파일’</strong>처럼 경고하면, 이 페이지에서 받은 DoIt 설치 파일이 맞는지 확인한 뒤 <strong>‘유지’</strong>를 고릅니다. Edge 기준이며 브라우저마다 문구가 다릅니다.</li>
+              <li>설치 파일을 열 때 <strong>‘Windows의 PC 보호’</strong> 창이 나오면 <strong>‘추가 정보’</strong>를 누릅니다.</li>
+              <li>게시자가 <strong>‘알 수 없는 게시자’</strong>로 표시되는지 확인하고 <strong>‘실행’</strong>을 누릅니다. DoIt 설치는 관리자 권한을 묻지 않는 것이 정상입니다.</li>
+            </ol></div>
+          </div>
+          <div class="windows-hash-check">
+            <h4>설치 파일이 맞는지 확인하기</h4>
+            <p>설치 파일이 있는 폴더에서 PowerShell을 열고 아래 명령을 실행합니다. Arm64용은 파일 이름의 <code>x64</code>를 <code>arm64</code>로 바꿉니다.</p>
+            <pre><code>Get-FileHash .\DoIt-Windows-1.0.0-1-x64-Setup.exe -Algorithm SHA256</code></pre>
+            <p>나온 <code>Hash</code> 값이 이 페이지의 <a class="text-link" href="#windows-checksums">설치 파일 SHA-256</a>과 같으면 공식 파일입니다. 다르면 실행하지 말고 지운 뒤 다시 받으세요. SHA-256 값은 다운로드가 열리면 함께 표시됩니다.</p>
+          </div>
+        </section>
+        <div class="windows-maintain">
+          <section aria-labelledby="windows-update-title"><h3 id="windows-update-title">업데이트</h3><p>앱 안 자동 업데이트는 없습니다. 새 버전 설치 파일을 받아 실행하면 앱만 바뀌고 할 일과 설정은 그대로 남습니다. DoIt이 실행 중이면 트레이 아이콘 메뉴에서 먼저 종료한 뒤 설치하세요.</p></section>
+          <section aria-labelledby="windows-remove-title"><h3 id="windows-remove-title">제거</h3><p><strong>설정 → 앱 → 설치된 앱</strong>에서 DoIt을 제거합니다. 할 일 데이터는 <code>%LOCALAPPDATA%\DoIt</code> 폴더에 남으므로, 지우려면 이 폴더를 직접 삭제하세요.</p></section>
+        </div>
+        <details id="windows-checksums" hidden><summary>설치 파일 SHA-256<span>＋</span></summary><div class="detail-body" id="windows-checksum-values"></div></details>
+      </div>
+    </section>
+  </div>
+
   <section class="guide-section content-width" id="privacy" aria-labelledby="guide-title">
     <h2 id="guide-title">사용 안내</h2>
     <details id="setup">
@@ -142,14 +314,14 @@
             </a>
           </li>
         </ol>
-        <p class="lms-screen-note">DoIt 설정 화면입니다. 개인 피드 주소는 포함하지 않았습니다. 웹에서는 주소를 입력받지 않습니다.</p>
+        <p class="lms-screen-note">Mac용 DoIt 설정 예시입니다. Windows에서도 DoIt 설정의 LMS 연동에서 주소를 저장합니다. 웹에서는 주소를 입력받지 않습니다.</p>
         <div class="lms-optional"><h4>LMS 없이도 사용할 수 있어요.</h4><p>연동하지 않아도 할 일·달력·마감 알림을 사용할 수 있습니다.<br>피드를 추가하지 않으면 패널에 LMS 칸이 나타나지 않습니다.</p></div>
         <div class="lms-safety"><p>피드 주소는 <strong>DoIt 앱 설정 창에만 직접</strong> 붙여넣으세요. 비밀번호처럼 보관하고 스크린샷·터미널·대화에 노출하지 마세요. 노출했다면 LMS에서 재발급하세요.</p><p>한동대 LMS 기준이며 다른 학교는 미검증입니다. 학교 공식 앱이 아닙니다. <strong>LMS 원본이 기준이며 DoIt은 보조 도구입니다.</strong> 중요한 마감은 LMS에서 확인하세요.</p></div>
       </div>
     </details>
-    <details><summary>개인정보<span>＋</span></summary><div class="detail-body"><p>개발자는 사용자 데이터를 수집하거나 전송받지 않습니다. 할 일·과제·체크 상태·기록은 맥 안에 저장됩니다.</p><p>LMS에는 피드 GET 요청만 보냅니다. 할 일과 체크 상태를 보내거나 강의자료·게시글·첨부파일에 접근하거나 화면을 크롤링하지 않습니다. LMS 데이터를 AI 서비스에 보내지 않습니다.</p><p>피드 주소는 본인 계정 전용 파일에 저장합니다(파일 권한 600·폴더 700, Time Machine 백업 제외). 같은 계정의 다른 프로그램까지 차단하는 저장소는 아닙니다.</p><p>업데이트 확인·다운로드는 GitHub와 통신하며 IP 등 일반 HTTP 정보가 전달될 수 있습니다. 이 웹사이트에는 입력 수집·분석 도구가 없습니다.</p></div></details>
-    <details><summary>알림과 업데이트<span>＋</span></summary><div class="detail-body"><p>노치 알림은 마감 당일 오전 9시에 모아서 표시합니다. 앱 종료 중 macOS 알림에는 알림 권한이 필요합니다. 기록은 자동으로 삭제하지 않습니다.</p><p>업데이트는 자동으로 확인하고 설치는 사용자가 선택합니다. 로컬 업데이트에서 인증 창 0번을 확인했으며 다른 맥이나 실제 배포 경로의 결과는 보장하지 않습니다.</p></div></details>
-    <details><summary>지원 환경<span>＋</span></summary><div class="detail-body"><p>macOS 14 이상. Apple Silicon 실사용 확인. Intel은 universal 빌드 확인, 실사용 미확인입니다. 모바일에서는 웹 체험만 가능하며 앱은 Mac 전용입니다.</p></div></details>
+    <details><summary>개인정보<span>＋</span></summary><div class="detail-body"><p>개발자는 사용자 데이터를 수집하거나 전송받지 않습니다. 할 일·과제·체크 상태·기록은 사용하는 기기에 저장됩니다.</p><p>LMS에는 피드 GET 요청만 보냅니다. 할 일과 체크 상태를 보내거나 강의자료·게시글·첨부파일에 접근하거나 화면을 크롤링하지 않습니다. LMS 데이터를 AI 서비스에 보내지 않습니다.</p><p>Mac에서는 피드 주소를 본인 계정 전용 파일에 저장합니다(파일 권한 600·폴더 700, Time Machine 백업 제외). Windows에서는 현재 Windows 사용자 계정으로 피드 주소를 보호합니다.</p><p>Mac용 업데이트 확인과 설치 파일 다운로드는 GitHub와 통신하며 IP 등 일반 HTTP 정보가 전달될 수 있습니다. 이 웹사이트에는 입력 수집·분석 도구가 없습니다.</p></div></details>
+    <details><summary>알림과 업데이트<span>＋</span></summary><div class="detail-body"><p>Mac에서는 마감 당일 오전 9시에 노치 알림을 모아서 표시합니다. 앱 종료 중 macOS 알림에는 알림 권한이 필요합니다. Windows에서는 오늘 마감인 건수만 알림 센터에 표시합니다. 기록은 자동으로 삭제하지 않습니다.</p><p>Mac용 업데이트는 자동으로 확인하고 설치는 사용자가 선택합니다.</p><p>Windows용은 앱 안 자동 업데이트가 없습니다. 설정의 ‘새 버전 확인’을 누르면 설치 안내 페이지가 열리고, 새 설치 파일을 실행하면 할 일과 설정을 유지한 채 앱만 바뀝니다.</p></div></details>
+    <details><summary>지원 환경<span>＋</span></summary><div class="detail-body"><p>macOS 14 이상. Apple Silicon 실사용 확인. Intel은 universal 빌드 확인, 실사용 미확인입니다.</p><p>Windows용은 Windows 11 x64·Arm64용 설치 파일을 따로 제공하며, 관리자 권한 없이 현재 Windows 계정에 설치됩니다. 모바일에서는 웹 체험을 이용할 수 있습니다.</p></div></details>
   </section>
 </main>
 <footer class="site-footer content-width"><a class="brand" href="#top">DoIt</a><div><a href="./legal.html#license">MIT 라이선스</a><a href="./legal.html#notices">외부 코드 고지</a><a href="https://github.com/prestige-kim/DoIt/issues">문제 신고</a></div><small>© 2026 prestige-kim</small></footer>

@@ -117,6 +117,7 @@ function leaveNotchPreview(event) {
 $('notch-toggle').addEventListener('pointerleave', leaveNotchPreview);
 panel.addEventListener('pointerleave', leaveNotchPreview);
 document.querySelectorAll('[data-open-notch]').forEach((button) => button.addEventListener('click', () => {
+  if ($('platform-mac').hidden) return;
   scene(1); reveal();
 }));
 $('calendar-toggle').addEventListener('click', () => interact(() => { state.calendar = !state.calendar; state.scene = state.calendar ? 2 : 1; announce(state.calendar ? '예시 달력으로 바꿨습니다.' : '목록으로 바꿨습니다.'); }));
@@ -147,7 +148,7 @@ $('show-alert').addEventListener('click', () => {
 $('alert-close').addEventListener('click', () => { hideAlert(); $('show-alert').focus({ preventScroll: true }); });
 $('alert-content').addEventListener('click', () => { scene(1); $('calendar-toggle').focus({ preventScroll: true }); });
 document.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && (state.open || state.editor || !$('demo-alert').hidden)) {
+  if (event.key === 'Escape' && !$('platform-mac').hidden && (state.open || state.editor || !$('demo-alert').hidden)) {
     interact(() => { state.open = false; state.editor = false; });
     $('notch-toggle').focus({ preventScroll: true });
   }

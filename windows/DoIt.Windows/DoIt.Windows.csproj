@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/DoIt.ico</ApplicationIcon>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Product>DoIt</Product>
+    <WindowsPackageType>None</WindowsPackageType>
+    <!-- WPF resources are compiled into the assembly. This app has no MSIX resource index. -->
+    <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
+    <ExpandPriResources>false</ExpandPriResources>
+    <WindowsAppSDKSelfContained Condition="'$(RuntimeIdentifier)' != ''">true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../DoIt.Core/DoIt.Core.csproj" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Foundation" Version="[2.6.5]" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Runtime" Version="[2.6.5]" />
+    <Content Include="Assets/DoIt.ico" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+</Project>

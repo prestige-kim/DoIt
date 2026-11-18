@@ -1,0 +1,48 @@
+<UserControl x:Class="DoIt.Windows.LmsSection"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Visibility="Collapsed" Margin="0,0,0,8">
+    <Expander x:Name="Section" IsExpanded="True" Expanded="OnExpansion" Collapsed="OnExpansion">
+        <Expander.Header>
+            <TextBlock x:Name="HeadingText" Text="LMS 과제" Style="{StaticResource Heading}"
+                       Foreground="{DynamicResource LmsAccent}" />
+        </Expander.Header>
+        <StackPanel Margin="6,4,4,0">
+            <TextBlock x:Name="SyncStatus" Visibility="Collapsed" TextWrapping="Wrap"
+                       Style="{StaticResource MutedText}" AutomationProperties.LiveSetting="Polite" />
+            <TextBlock x:Name="CheckError" Visibility="Collapsed" TextWrapping="Wrap"
+                       Foreground="{DynamicResource OverdueAccent}" AutomationProperties.LiveSetting="Polite"
+                       Text="과제 체크를 저장하지 못했습니다. 다시 시도해 주세요." />
+            <ItemsControl x:Name="Rows">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <DockPanel Margin="0,4">
+                            <CheckBox DockPanel.Dock="Left" VerticalAlignment="Center" Margin="0,0,8,0"
+                                      Foreground="{DynamicResource LmsAccent}" IsEnabled="{Binding CanToggle}"
+                                      IsChecked="{Binding Row.IsDone, Mode=OneWay}" AutomationProperties.Name="{Binding CompletionLabel}"
+                                      Click="ToggleDone" />
+                            <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center">
+                                <TextBlock x:Name="Deadline" Text="{Binding DayLabel}" FontWeight="SemiBold" TextAlignment="Right" />
+                                <TextBlock Text="{Binding DateLabel}" Style="{StaticResource MutedText}" TextAlignment="Right" />
+                            </StackPanel>
+                            <StackPanel>
+                                <TextBlock x:Name="Title" Text="{Binding Row.Item.Title}" TextWrapping="Wrap" ToolTip="{Binding Row.Item.Title}" />
+                                <TextBlock Text="{Binding CourseLabel}" TextWrapping="Wrap"
+                                           FontSize="11" Foreground="{DynamicResource LmsAccent}" />
+                            </StackPanel>
+                        </DockPanel>
+                        <DataTemplate.Triggers>
+                            <DataTrigger Binding="{Binding IsOverdue}" Value="True">
+                                <Setter TargetName="Deadline" Property="Foreground" Value="{DynamicResource OverdueAccent}" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding Row.IsDone}" Value="True">
+                                <Setter TargetName="Title" Property="TextDecorations" Value="Strikethrough" />
+                                <Setter TargetName="Title" Property="Opacity" Value="0.65" />
+                            </DataTrigger>
+                        </DataTemplate.Triggers>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </Expander>
+</UserControl>
