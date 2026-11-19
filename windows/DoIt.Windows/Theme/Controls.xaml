@@ -1,0 +1,308 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- T-035 공통 스타일. 색은 Colors.Light/Dark.xaml의 DoIt.* 키를 DynamicResource로만 쓴다.
+         명시 스타일은 Fluent 기본 스타일을 이어받지 않으므로 Foreground·Background를 모두 직접 정한다. -->
+
+    <FontFamily x:Key="DoIt.IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+    <FontFamily x:Key="DoIt.TextFont">Segoe UI Variable Text, Segoe UI, Malgun Gothic</FontFamily>
+
+    <!-- 글자 -->
+    <Style x:Key="MutedText" TargetType="TextBlock">
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Muted}" />
+    </Style>
+    <Style x:Key="Heading" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+    </Style>
+    <Style x:Key="DoIt.Title" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="21" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+    </Style>
+    <Style x:Key="DoIt.Small" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Muted}" />
+    </Style>
+    <Style x:Key="DoIt.Icon" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource DoIt.IconFont}" />
+        <Setter Property="FontSize" Value="16" />
+        <Setter Property="HorizontalAlignment" Value="Center" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 포커스 표시(키보드) -->
+    <Style x:Key="DoIt.FocusVisual">
+        <Setter Property="Control.Template">
+            <Setter.Value>
+                <ControlTemplate>
+                    <Border Margin="-2" CornerRadius="9" BorderThickness="2" BorderBrush="{DynamicResource DoIt.Green}" />
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 아이콘 버튼: 34×34, 평소 투명·보조 글자색, 마우스 올리면 옅은 바탕 -->
+    <Style x:Key="DoIt.IconButton" TargetType="Button">
+        <Setter Property="Width" Value="34" />
+        <Setter Property="Height" Value="34" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Muted}" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="FontFamily" Value="{StaticResource DoIt.IconFont}" />
+        <Setter Property="FontSize" Value="17" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Chrome" CornerRadius="8" Background="{TemplateBinding Background}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource DoIt.Hover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- 눌린 상태(예: 달력 화면의 목록 아이콘) -->
+    <Style x:Key="DoIt.IconButton.Active" TargetType="Button" BasedOn="{StaticResource DoIt.IconButton}">
+        <Setter Property="Background" Value="{DynamicResource DoIt.Hover}" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+    </Style>
+
+    <!-- 알약 버튼: 옅은 바탕 + 테두리, 반경 7 -->
+    <Style x:Key="DoIt.PillButton" TargetType="Button">
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+        <Setter Property="Background" Value="{DynamicResource DoIt.Hover}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DoIt.Edge}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="12,6" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Grid>
+                        <Border x:Name="Chrome" CornerRadius="7" Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" />
+                        <Border x:Name="Shade" CornerRadius="7" Background="{TemplateBinding Foreground}" Opacity="0" />
+                        <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Shade" Property="Opacity" Value="0.06" />
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Shade" Property="Opacity" Value="0.12" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <!-- 초록 강조 버튼 (예: 새 버전 받기) -->
+    <Style x:Key="DoIt.AccentButton" TargetType="Button" BasedOn="{StaticResource DoIt.PillButton}">
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.OnAccent}" />
+        <Setter Property="Background" Value="{DynamicResource DoIt.Green}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DoIt.Green}" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+    </Style>
+    <!-- 빨간 글자 버튼 (예: 연결 해제, 삭제) -->
+    <Style x:Key="DoIt.DangerButton" TargetType="Button" BasedOn="{StaticResource DoIt.PillButton}">
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Red}" />
+    </Style>
+
+    <!-- 둥근 입력창. Tag에 안내 문구를 넣으면 비어 있을 때 보인다. -->
+    <Style x:Key="DoIt.Input" TargetType="TextBox">
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+        <Setter Property="Background" Value="{DynamicResource DoIt.Input}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DoIt.Edge}" />
+        <Setter Property="CaretBrush" Value="{DynamicResource DoIt.Text}" />
+        <Setter Property="SelectionBrush" Value="{DynamicResource DoIt.Green}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="FontSize" Value="15" />
+        <Setter Property="VerticalContentAlignment" Value="Center" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="TextBox">
+                    <Border x:Name="Chrome" CornerRadius="10" Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                        <Grid Margin="{TemplateBinding Padding}">
+                            <TextBlock x:Name="Hint" Text="{TemplateBinding Tag}" Foreground="{DynamicResource DoIt.Muted}"
+                                       VerticalAlignment="Center" IsHitTestVisible="False" Visibility="Collapsed" />
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Focusable="False" />
+                        </Grid>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="Text" Value="">
+                            <Setter TargetName="Hint" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsKeyboardFocused" Value="True">
+                            <Setter TargetName="Chrome" Property="BorderBrush" Value="{DynamicResource DoIt.Green}" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.5" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 스위치 (CheckBox): 40×22, 켜짐 초록 -->
+    <Style x:Key="DoIt.Switch" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Track" Width="40" Height="22" CornerRadius="11" Background="{DynamicResource DoIt.SwitchOff}">
+                        <Ellipse x:Name="Thumb" Width="16" Height="16" Fill="White" Margin="3,0" HorizontalAlignment="Left" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Track" Property="Background" Value="{DynamicResource DoIt.Green}" />
+                            <Setter TargetName="Thumb" Property="HorizontalAlignment" Value="Right" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.4" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 원형 완료 체크 (CheckBox): 20×20. BorderBrush로 원 색을 바꾼다(LMS 파랑, 지난 과제 빨강). 완료는 초록 원 + 체크 -->
+    <Style x:Key="DoIt.CircleCheck" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DoIt.Ring}" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Grid Width="20" Height="20" Background="Transparent">
+                        <Ellipse x:Name="Ring" Stroke="{TemplateBinding BorderBrush}" StrokeThickness="1.6" />
+                        <Path x:Name="Mark" Data="M5.5,10.3 L8.6,13.3 L14.5,7" Stroke="{DynamicResource DoIt.OnAccent}"
+                              StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Ring" Property="StrokeThickness" Value="2.2" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Ring" Property="Fill" Value="{DynamicResource DoIt.Green}" />
+                            <Setter TargetName="Ring" Property="Stroke" Value="{DynamicResource DoIt.Green}" />
+                            <Setter TargetName="Mark" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 사각 선택 체크 (CheckBox): 16×16 반경 4, 선택은 초록 -->
+    <Style x:Key="DoIt.SquareCheck" TargetType="CheckBox">
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="CheckBox">
+                    <Border x:Name="Box" Width="16" Height="16" CornerRadius="4" BorderThickness="1.5"
+                            BorderBrush="{DynamicResource DoIt.Ring}" Background="Transparent">
+                        <Path x:Name="Mark" Data="M3.5,8 L6.5,11 L12.5,5" Stroke="{DynamicResource DoIt.OnAccent}" StrokeThickness="2"
+                              StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round" Visibility="Collapsed"
+                              Margin="-1.5" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Box" Property="Background" Value="{DynamicResource DoIt.Green}" />
+                            <Setter TargetName="Box" Property="BorderBrush" Value="{DynamicResource DoIt.Green}" />
+                            <Setter TargetName="Mark" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                        <Trigger Property="IsEnabled" Value="False">
+                            <Setter Property="Opacity" Value="0.45" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- 세그먼트 한 칸 (RadioButton). 같은 GroupName 여러 개를 DoIt.SegmentHost 안에 둔다 -->
+    <Style x:Key="DoIt.Segment" TargetType="RadioButton">
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.Muted}" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Padding" Value="12,5" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="RadioButton">
+                    <Border x:Name="Chrome" CornerRadius="6" Background="Transparent" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource DoIt.Hover}" />
+                            <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+                            <Setter Property="FontWeight" Value="SemiBold" />
+                        </Trigger>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+    <Style x:Key="DoIt.SegmentHost" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DoIt.Input}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DoIt.Edge}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="3" />
+    </Style>
+
+    <!-- 묶음 상자 (설정의 둥근 그룹) -->
+    <Style x:Key="DoIt.Group" TargetType="Border">
+        <Setter Property="Background" Value="{DynamicResource DoIt.Group}" />
+        <Setter Property="BorderBrush" Value="{DynamicResource DoIt.Line}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Margin" Value="0,0,0,14" />
+    </Style>
+
+    <!-- 개수 배지: Background/Foreground는 쓰는 곳에서 GreenSoft/Green 또는 BlueSoft/Blue -->
+    <Style x:Key="DoIt.Badge" TargetType="Border">
+        <Setter Property="CornerRadius" Value="6" />
+        <Setter Property="Padding" Value="7,1" />
+        <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <!-- 말풍선 (잘린 제목 등) -->
+    <Style TargetType="ToolTip">
+        <Setter Property="Background" Value="{DynamicResource DoIt.Tooltip}" />
+        <Setter Property="Foreground" Value="{DynamicResource DoIt.TooltipText}" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Padding" Value="8,5" />
+    </Style>
+</ResourceDictionary>

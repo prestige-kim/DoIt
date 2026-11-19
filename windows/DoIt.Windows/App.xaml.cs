@@ -28,6 +28,7 @@ public partial class App : Application
     private InstalledStartup? startup;
     private NotificationCenter? notificationCenter;
     private ReminderController? reminders;
+    private UpdateService? updates;
 
     private const string UnexpectedErrorMessage = "예상하지 못한 문제로 DoIt을 종료합니다. 다시 실행해 주세요.";
     private bool silentFailures;
@@ -42,6 +43,10 @@ public partial class App : Application
         AppDomain.CurrentDomain.UnhandledException += OnDomainUnhandledException;
         TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
         base.OnStartup(e);
+        if (!silentFailures)
+        {
+            AppTheme.Start(this);
+        }
 
         if (cleanupOnly)
         {
@@ -103,7 +108,11 @@ public partial class App : Application
             lms.Changed += RefreshLmsViews;
             tray.DesktopGeometryChanged += OnDesktopGeometryChanged;
             tray.LocalDateMayHaveChanged += RefreshLocalDate;
-            tray.Resumed += () => RefreshLms();
+            tray.Resumed += () =>
+            {
+                RefreshLms();
+                CheckForUpdates();
+            };
             tray.LmsRefreshRequested += () => RefreshLms(manual: true);
             tray.HistoryRequested += ShowHistory;
             tray.CanRefreshLms = () => lms.Snapshot is { Enabled: true, HasFeedAddress: true, IsSyncing: false, DisconnectPending: false };
@@ -111,6 +120,7 @@ public partial class App : Application
             reminders.Changed += RefreshReminderSettings;
             reminders.Start(background: false);
             RefreshLms();
+            StartUpdateChecks(dataDirectory);
         }
         catch (Exception exception)
         {
@@ -223,6 +233,7 @@ public partial class App : Application
 
     protected override void OnExit(ExitEventArgs e)
     {
+        AppTheme.Stop();
         pendingPlacement?.Abort();
         pendingDismissal?.Abort();
         if (reminders is not null)
@@ -239,6 +250,11 @@ public partial class App : Application
         {
             lms.Changed -= RefreshLmsViews;
             lms.Dispose();
+        }
+        if (updates is not null)
+        {
+            updates.Changed -= RefreshUpdateViews;
+            updates.Dispose();
         }
         try
         {
@@ -302,6 +318,7 @@ public partial class App : Application
         activateAfterPlacement = true;
         QueuePlacement();
         RefreshLms();
+        CheckForUpdates();
     }
 
     private void OnNotificationInvoked()
@@ -420,6 +437,61 @@ public partial class App : Application
 
     private void RefreshReminderSettings() => settings?.RefreshReminders();
 
+    // Part of the last startup stage, but optional: if it fails the app runs without update checks.
+    private void StartUpdateChecks(string dataDirectory)
+    {
+        try
+        {
+            var (version, build) = SettingsWindow.ReadVersion(typeof(App).Assembly);
+            updates = new UpdateService(dataDirectory, version, build, UpdateSchedule.CurrentArchitecture());
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or ArgumentException or NotSupportedException or System.Security.SecurityException)
+        {
+            updates = null;
+            return;
+        }
+        updates.Changed += RefreshUpdateViews;
+        if (tray is not null)
+        {
+            tray.UpdateMenuLabel = () => updates is { } service ? UpdateDisplay.MenuLabel(service.Snapshot) : null;
+            tray.UpdateDownloadRequested += OpenUpdateDownload;
+        }
+        CheckForUpdates();
+    }
+
+    // Runs only on startup, resume and panel open. The service skips it unless 24 hours have passed.
+    private void CheckForUpdates()
+    {
+        if (updates is { } service)
+        {
+            SettingsWindow.RunUpdateCheck(service, manual: false);
+        }
+    }
+
+    private void OpenUpdateDownload()
+    {
+        if (updates?.Snapshot.DownloadUrl is { } url && !SettingsWindow.ShellOpen(url.AbsoluteUri))
+        {
+            ShowSettings();
+            settings?.ShowUpdateError();
+        }
+    }
+
+    private void RefreshUpdateViews()
+    {
+        if (Dispatcher.HasShutdownStarted)
+        {
+            return;
+        }
+        if (!Dispatcher.CheckAccess())
+        {
+            Dispatcher.BeginInvoke(RefreshUpdateViews);
+            return;
+        }
+        settings?.RefreshUpdateState();
+    }
+
     private async void RefreshLms(bool manual = false)
     {
         if (lms is { } service)
@@ -471,7 +543,7 @@ public partial class App : Application
         HidePanel();
         if (settings is null)
         {
-            settings = new SettingsWindow(lms!, history!, RefreshLms, reminders!, startup!);
+            settings = new SettingsWindow(lms!, history!, RefreshLms, reminders!, startup!, updates);
             settings.Closed += (_, _) => settings = null;
             settings.Show();
         }
@@ -480,6 +552,7 @@ public partial class App : Application
         settings.RefreshHistorySummary();
         settings.RefreshReminders();
         settings.RefreshStartup();
+        settings.RefreshUpdateState();
 
         if (settings.WindowState == WindowState.Minimized)
         {

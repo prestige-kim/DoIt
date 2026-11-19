@@ -3,9 +3,14 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Interop;
+using System.Windows.Threading;
 using DoIt.Core;
+using Microsoft.Win32;
 
 namespace DoIt.Windows;
 
@@ -16,32 +21,80 @@ public partial class SettingsWindow : Window
     private readonly Action<bool> refreshLms;
     private readonly ReminderController reminders;
     private readonly InstalledStartup startup;
-    private const string InstallGuideAddress = "https://prestige-kim.github.io/DoIt/#windows-install";
+    private readonly UpdateService? updates;
+    private const string OpenFailedMessage = "브라우저를 열지 못했습니다. DoIt 홈페이지에서 Windows 설치 안내를 확인해 주세요.";
     private bool refreshing;
+    private readonly RadioButton[] retentionButtons;
+    private readonly ScrollViewer[] pages;
     private bool resetConfirmed;
     private static readonly HistoryRetention[] Retentions =
         [HistoryRetention.SixMonths, HistoryRetention.OneYear, HistoryRetention.TwoYears, HistoryRetention.Forever];
 
     internal SettingsWindow(LmsService lms, HistoryService history, Action<bool> refreshLms,
-        ReminderController reminders, InstalledStartup startup)
+        ReminderController reminders, InstalledStartup startup, UpdateService? updates)
     {
         this.lms = lms;
         this.history = history;
         this.refreshLms = refreshLms;
         this.reminders = reminders;
         this.startup = startup;
+        this.updates = updates;
         InitializeComponent();
-        WeeksBox.ItemsSource = Enumerable.Range(1, LmsDisplay.MaxWeeks).Select(weeks => $"{weeks}주").ToArray();
-        RetentionBox.ItemsSource = new[] { "6개월", "1년", "2년", "정리 안 함" };
-        WeeksBox.SelectionChanged += ChangeWeeks;
-        RetentionBox.SelectionChanged += ChangeRetention;
+        retentionButtons = [RetentionSixMonths, RetentionOneYear, RetentionTwoYears, RetentionForever];
+        pages = [GeneralPage, LmsPage, ReminderPage, HistoryPage, StoragePage];
         VersionLabel.Text = VersionText(typeof(SettingsWindow).Assembly);
-        Closed += (_, _) => CloseAddressEditor();
+        SourceInitialized += (_, _) => ApplyTitleBarTheme();
+        SystemEvents.UserPreferenceChanged += OnPreferenceChanged;
+        Closed += (_, _) =>
+        {
+            SystemEvents.UserPreferenceChanged -= OnPreferenceChanged;
+            CloseAddressEditor();
+        };
+        ShowSection();
         RefreshLmsState();
         RefreshHistorySummary();
         RenderStorage();
         RefreshStartup();
         RefreshReminders();
+        RefreshUpdateState();
+    }
+
+    internal void RefreshUpdateState()
+    {
+        if (updates is null)
+        {
+            AutoUpdateCheck.IsEnabled = CheckUpdateButton.IsEnabled = false;
+            DownloadUpdateButton.Visibility = Visibility.Collapsed;
+            UpdateStatus.Text = "새 버전 확인을 사용할 수 없습니다.";
+            UpdateStatus.SetResourceReference(TextBlock.ForegroundProperty, "DoIt.Muted");
+            UpdateDetail.Text = "";
+            return;
+        }
+        var snapshot = updates.Snapshot;
+        AutoUpdateCheck.IsChecked = snapshot.AutoCheck;
+        AutoUpdateCheck.IsEnabled = !snapshot.IsDevelopmentBuild;
+        CheckUpdateButton.IsEnabled = !snapshot.IsDevelopmentBuild && !snapshot.IsChecking;
+        DownloadUpdateButton.Visibility = snapshot.DownloadUrl is null ? Visibility.Collapsed : Visibility.Visible;
+        if (snapshot.Available is { } available)
+        {
+            DownloadUpdateButton.Content = $"새 버전 받기 ({available.Version})";
+        }
+        UpdateStatus.Text = UpdateDisplay.Status(snapshot);
+        UpdateStatus.SetResourceReference(TextBlock.ForegroundProperty,
+            snapshot.Available is null ? "DoIt.Muted" : "DoIt.Green");
+        UpdateDetail.Text = UpdateDisplay.LastChecked(snapshot, TimeZoneInfo.Local);
+    }
+
+    private void ToggleAutoUpdate(object sender, RoutedEventArgs e)
+    {
+        if (updates is null) return;
+        bool enable = AutoUpdateCheck.IsChecked == true;
+        UpdateError.Text = updates.SetAutoCheck(enable) ? "" : "설정을 저장하지 못했습니다. 다시 시도해 주세요.";
+        RefreshUpdateState();
+        if (enable)
+        {
+            RunUpdateCheck(updates, manual: false);
+        }
     }
 
     internal void RefreshStartup()
@@ -90,10 +143,14 @@ public partial class SettingsWindow : Window
         {
             EnableLms.IsChecked = snapshot.Enabled;
             EnableLms.IsEnabled = snapshot.HasFeedAddress && !snapshot.DisconnectPending;
-            WeeksBox.SelectedIndex = snapshot.Weeks - 1;
-            FeedLabel.Text = snapshot.HasFeedAddress ? "피드 주소는 이 PC에만 저장됩니다."
+            WeeksValue.Text = $"{snapshot.Weeks}주";
+            FewerWeeksButton.IsEnabled = snapshot.Weeks > 1;
+            MoreWeeksButton.IsEnabled = snapshot.Weeks < LmsDisplay.MaxWeeks;
+            FeedLabel.Text = snapshot.HasFeedAddress ? "주소 자체가 비밀번호와 같아요. 다시 보여 주지 않아요."
                 : "LMS 달력에서 발급받은 개인 캘린더 피드 주소를 입력해 주세요.";
-            EditAddressButton.Content = snapshot.HasFeedAddress ? "주소 바꾸기…" : "피드 주소 입력";
+            FeedSaved.Visibility = snapshot.HasFeedAddress ? Visibility.Visible : Visibility.Collapsed;
+            EditAddressButton.Content = snapshot.HasFeedAddress ? "변경…" : "피드 주소 입력";
+            AutomationProperties.SetName(EditAddressButton, snapshot.HasFeedAddress ? "피드 주소 변경" : "피드 주소 입력");
             EditAddressButton.IsEnabled = !snapshot.DisconnectPending;
             DisconnectButton.IsEnabled = snapshot.HasFeedAddress || snapshot.DisconnectPending;
             RefreshButton.IsEnabled = snapshot is { Enabled: true, HasFeedAddress: true, IsSyncing: false, DisconnectPending: false };
@@ -115,14 +172,39 @@ public partial class SettingsWindow : Window
 
     internal void ShowHistory() => Sections.SelectedItem = HistoryTab;
 
+    private void ChangeSection(object sender, SelectionChangedEventArgs e) => ShowSection();
+
+    // The sidebar replaces the old tabs: only the selected page is shown.
+    private void ShowSection()
+    {
+        if (pages is null)
+        {
+            return; // InitializeComponent selects the first item before the pages exist.
+        }
+        if (Sections.SelectedIndex < 0)
+        {
+            Sections.SelectedIndex = 0;
+            return;
+        }
+        for (int index = 0; index < pages.Length; index++)
+        {
+            pages[index].Visibility = index == Sections.SelectedIndex ? Visibility.Visible : Visibility.Collapsed;
+        }
+    }
+
     internal void RefreshHistorySummary()
     {
         var summary = history.Preview();
         refreshing = true;
         try
         {
-            RetentionBox.SelectedIndex = Array.IndexOf(Retentions, history.Retention);
-            CleanupCount.Text = $"정리 대상 {summary.TotalCount}개 · 내 할 일 {summary.TodoCount}개, LMS {summary.LmsCount}개";
+            int selected = Array.IndexOf(Retentions, history.Retention);
+            for (int index = 0; index < retentionButtons.Length; index++)
+            {
+                retentionButtons[index].IsChecked = index == selected;
+            }
+            CleanupCount.Text = $"정리 대상 {summary.TotalCount}개";
+            CleanupDetail.Text = $"내 할 일 {summary.TodoCount}개, LMS {summary.LmsCount}개";
             CleanupButton.IsEnabled = summary.TotalCount > 0;
             RefreshArchiveButton();
             if (summary.TotalCount == 0)
@@ -148,14 +230,20 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void ChangeWeeks(object sender, SelectionChangedEventArgs e)
+    private void FewerWeeks(object sender, RoutedEventArgs e) => ChangeWeeks(-1);
+
+    private void MoreWeeks(object sender, RoutedEventArgs e) => ChangeWeeks(1);
+
+    private void ChangeWeeks(int step)
     {
-        if (!refreshing && WeeksBox.SelectedIndex >= 0)
+        int weeks = lms.Snapshot.Weeks + step;
+        if (refreshing || weeks < 1 || weeks > LmsDisplay.MaxWeeks)
         {
-            var saved = lms.SetWeeks(WeeksBox.SelectedIndex + 1);
-            LmsError.Text = saved ? "" : "가져올 기간을 저장하지 못했습니다. 다시 시도해 주세요.";
-            RefreshLmsState();
+            return;
         }
+        var saved = lms.SetWeeks(weeks);
+        LmsError.Text = saved ? "" : "가져올 기간을 저장하지 못했습니다. 다시 시도해 주세요.";
+        RefreshLmsState();
     }
 
     private void EditAddress(object sender, RoutedEventArgs e)
@@ -224,15 +312,16 @@ public partial class SettingsWindow : Window
         refreshLms(true);
     }
 
-    private void ChangeRetention(object sender, SelectionChangedEventArgs e)
+    private void ChangeRetention(object sender, RoutedEventArgs e)
     {
-        if (refreshing || RetentionBox.SelectedIndex < 0)
+        int selected = retentionButtons is null ? -1 : Array.IndexOf(retentionButtons, sender);
+        if (refreshing || selected < 0)
         {
             return;
         }
         try
         {
-            history.SetRetention(Retentions[RetentionBox.SelectedIndex]);
+            history.SetRetention(Retentions[selected]);
             HistoryStatus.Text = "";
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
@@ -306,10 +395,35 @@ public partial class SettingsWindow : Window
 
     private void CheckForUpdate(object sender, RoutedEventArgs e)
     {
-        UpdateStatus.Text = ShellOpen(InstallGuideAddress) ? "" : "브라우저를 열지 못했습니다. DoIt 홈페이지에서 Windows 설치 안내를 확인해 주세요.";
+        UpdateError.Text = "";
+        if (updates is not null)
+        {
+            RunUpdateCheck(updates, manual: true);
+        }
     }
 
-    private static bool ShellOpen(string target)
+    private void DownloadUpdate(object sender, RoutedEventArgs e)
+    {
+        UpdateError.Text = updates?.Snapshot.DownloadUrl is { } url && ShellOpen(url.AbsoluteUri) ? "" : OpenFailedMessage;
+    }
+
+    internal void ShowUpdateError() => UpdateError.Text = OpenFailedMessage;
+
+    // The service raises Changed with the result. Failures become a short status, never an exception.
+    internal static async void RunUpdateCheck(UpdateService service, bool manual)
+    {
+        try
+        {
+            await service.CheckAsync(manual);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+            or ObjectDisposedException or OperationCanceledException or InvalidOperationException)
+        {
+            // An update check never interrupts the app.
+        }
+    }
+
+    internal static bool ShellOpen(string target)
     {
         try
         {
@@ -323,7 +437,8 @@ public partial class SettingsWindow : Window
         }
     }
 
-    internal static string VersionText(Assembly assembly)
+    // The packaging script sets Version and FileVersion=<version>.<build>. A local build has build 0.
+    internal static (string Version, int Build) ReadVersion(Assembly assembly)
     {
         string? informational = assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
         string version = informational?.Split('+', 2)[0] is { Length: > 0 } trimmed
@@ -332,6 +447,12 @@ public partial class SettingsWindow : Window
         int build = Version.TryParse(assembly.GetCustomAttribute<AssemblyFileVersionAttribute>()?.Version, out var fileVersion)
             ? fileVersion.Revision
             : 0;
+        return (version, Math.Max(build, 0));
+    }
+
+    internal static string VersionText(Assembly assembly)
+    {
+        var (version, build) = ReadVersion(assembly);
         string detail = build > 0 ? $"빌드 {build}" : "개발 빌드";
         return version.Length > 0 ? $"DoIt 버전 {version} ({detail})" : $"DoIt ({detail})";
     }
@@ -348,9 +469,47 @@ public partial class SettingsWindow : Window
     private void RenderStorage()
     {
         var entries = history.Storage();
-        var details = entries.Select(entry => $"{entry.Name} · {entry.ItemCount:N0}개 · {entry.Bytes:N0}바이트");
-        StorageLabel.Text = string.Join(Environment.NewLine, details.Append($"합계 {entries.Sum(entry => entry.Bytes):N0}바이트")
-            .Append($"정리 대상 {history.Preview().TotalCount}개")
-            .Append($"DoIt 메모리 {history.MemoryBytes / (1024 * 1024):N0}MB"));
+        StorageRows.ItemsSource = entries
+            .Select(entry => new StorageRow(entry.Name, $"{entry.ItemCount:N0}개", $"{entry.Bytes:N0}바이트"))
+            .ToArray();
+        StorageTotal.Text = $"{entries.Sum(entry => entry.Bytes):N0}바이트";
+        StorageCleanup.Text = $"{history.Preview().TotalCount}개";
+        StorageMemory.Text = $"{history.MemoryBytes / (1024 * 1024):N0}MB";
     }
+
+    // One row of the storage table. Public so WPF binding can read it.
+    public sealed record StorageRow(string Name, string Count, string Size);
+
+    // Windows draws the title bar. Match it to DoIt's light or dark colors (DWMWA_USE_IMMERSIVE_DARK_MODE).
+    private void ApplyTitleBarTheme()
+    {
+        nint handle = new WindowInteropHelper(this).Handle;
+        if (handle == 0)
+        {
+            return;
+        }
+        int dark = AppTheme.IsLight ? 0 : 1;
+        try
+        {
+            _ = DwmSetWindowAttribute(handle, ImmersiveDarkMode, ref dark, sizeof(int));
+        }
+        catch (Exception exception) when (exception is DllNotFoundException or EntryPointNotFoundException)
+        {
+            // Older Windows keeps its default title bar.
+        }
+    }
+
+    // AppTheme swaps the colors on the same event; run after it so IsLight is current.
+    private void OnPreferenceChanged(object sender, UserPreferenceChangedEventArgs e)
+    {
+        if (!Dispatcher.HasShutdownStarted)
+        {
+            Dispatcher.BeginInvoke(DispatcherPriority.Background, ApplyTitleBarTheme);
+        }
+    }
+
+    private const int ImmersiveDarkMode = 20;
+
+    [DllImport("dwmapi.dll")]
+    private static extern int DwmSetWindowAttribute(nint window, int attribute, ref int value, int size);
 }

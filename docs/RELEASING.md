@@ -109,7 +109,7 @@ Sparkle 로컬 8→9 업데이트와 이 Mac의 정식 원격 1.0.0→1.0.1 업�
 
 ## Windows 릴리스
 
-Windows 버전은 Mac과 **별도 번호**를 씁니다. 첫 공개는 1.0.0(빌드 1)이며 Release 태그는 `windows-v<버전>-<빌드>`, 설치 파일은 `DoIt-Windows-<버전>-<빌드>-{x64,arm64}-Setup.exe`입니다. 위의 Mac 도구(`release.sh`)·appcast는 Windows에 쓰지 않습니다. Windows 앱에는 자동 업데이트가 없고, 사용자가 새 설치 파일을 받아 실행하면 데이터를 유지한 채 덮어씁니다.
+Windows 버전은 Mac과 **별도 번호**를 씁니다. 첫 공개는 1.0.0(빌드 1)이며 Release 태그는 `windows-v<버전>-<빌드>`, 설치 파일은 `DoIt-Windows-<버전>-<빌드>-{x64,arm64}-Setup.exe`입니다. 위의 Mac 도구(`release.sh`)·appcast는 Windows에 쓰지 않습니다. Windows 앱은 공개 정보 파일 `site/windows-release.json`(Pages 주소 `https://prestige-kim.github.io/DoIt/windows-release.json`)을 하루 한 번 확인해 새 버전을 **알려 주기만** 하고, 사용자가 새 설치 파일을 받아 실행하면 데이터를 유지한 채 덮어씁니다. 그래서 7단계에서 이 파일과 `WINDOWS_RELEASE`를 함께 켜고, 8단계 Pages 실행 뒤에야 앱 알림이 보입니다.
 
 ### 버전 정책
 
@@ -207,7 +207,12 @@ tr -d '\r' < SHA256SUMS.txt | shasum -a 256 -c -
 
 ### 7. 다운로드 설정 켜기
 
-`scripts/windows_release_config.py`가 manifest를 읽어 `site/windows-download.js`의 `WINDOWS_RELEASE` 한 줄만 공개 값으로 바꿉니다. 기본은 **미리보기**(바뀔 줄만 출력, 파일 그대로)이고 `--write`일 때만 씁니다.
+`scripts/windows_release_config.py`가 manifest를 읽어 **두 파일을 같은 값으로 함께** 바꿉니다.
+
+- `site/windows-download.js`의 `WINDOWS_RELEASE` 한 줄 — 랜딩 다운로드 버튼과 SHA-256 표시용
+- `site/windows-release.json` — Windows 앱의 새 버전 알림용. 미공개 값은 `{"schemaVersion": 1, "releasePublished": false}`, 공개 값은 `schemaVersion`·`releasePublished`·`version`·`build`·`assets`(`x64`·`arm64`마다 `url`·`sha256`) 순서, 들여쓰기 2칸, LF 줄바꿈
+
+기본은 **미리보기**(두 파일의 바뀔 내용만 출력, 파일 그대로)이고 `--write`일 때만 씁니다. 다른 위치를 바꾸려면 `--target`(JS)·`--json-target`(JSON)을 씁니다.
 
 ```sh
 # 미리보기 + 재다운로드 파일 대조
@@ -219,9 +224,20 @@ python3 scripts/windows_release_config.py <manifest.json> --verify-file <같은 
 python3 scripts/windows_release_config.py <manifest.json> --only x64 --verify-file <x64 파일> --write
 ```
 
-도구는 버전 `x.y.z`, 빌드 1~65535, 자산 파일명 형식, SHA-256 64자리 16진수, 아키텍처 이름을 검사하고, URL을 `site/config.js`의 owner·repository로 만든 GitHub Releases 주소(`verifiedWindowsDownload`가 기대하는 주소)와 똑같이 맞춥니다. `node`가 있으면 바뀐 내용의 임시 사본에서 `verifiedWindowsDownload()`를 실제로 실행해 결과가 기대와 같은지 확인하고, 없으면 그 검사만 건너뜁니다. 하나라도 실패하거나 `WINDOWS_RELEASE` 한 줄 형식을 찾지 못하면 이유를 출력하고 종료 코드 1로 끝나며 파일은 바뀌지 않습니다.
+도구는 버전 `x.y.z`, 빌드 1~65535, 자산 파일명 형식, SHA-256 64자리 16진수, 아키텍처 이름을 검사하고, URL을 `site/config.js`의 owner·repository로 만든 GitHub Releases 주소(`verifiedWindowsDownload`가 기대하는 주소)와 똑같이 맞춥니다. `--only`로 고른 아키텍처는 두 파일 모두에 같은 것만 들어갑니다. 새 JSON은 쓰기 전에 문자열에서 다시 읽어 따로 검사합니다(키 구성, 스키마 1, 버전·빌드, URL이 위 주소와 정확히 같은지, 소문자 64자리 해시, LF·마지막 줄바꿈). 그 값이 `WINDOWS_RELEASE`와 다르면 거부합니다. `node`가 있으면 바뀐 내용의 임시 사본에서 `verifiedWindowsDownload()`를 `WINDOWS_RELEASE`와 새 JSON 각각에 실제로 실행해 결과가 기대와 같은지 확인하고, 없으면 그 검사만 건너뜁니다. 하나라도 실패하거나 `WINDOWS_RELEASE` 한 줄 형식·JSON 파일을 찾지 못하면 이유를 출력하고 종료 코드 1로 끝나며 **두 파일 모두** 바뀌지 않습니다. 쓰는 중에 한 파일이라도 실패하면 이미 바꾼 파일도 원래 내용으로 되돌립니다.
 
-`git diff site/windows-download.js`로 한 줄만 바뀐 것을 확인하고 원본 저장소에 커밋합니다.
+`git diff site/windows-download.js site/windows-release.json`으로 JS 한 줄과 JSON만 바뀐 것을 확인하고 두 파일을 한 커밋으로 원본 저장소에 커밋합니다.
+
+#### 되돌리기 (공개 후 문제가 생겼을 때)
+
+```sh
+# 미리보기: 두 파일이 미공개 값으로 어떻게 바뀌는지 출력만
+python3 scripts/windows_release_config.py --unpublish
+# 확인 후 쓰기
+python3 scripts/windows_release_config.py --unpublish --write
+```
+
+`--unpublish`는 manifest 없이 `WINDOWS_RELEASE`를 `releasePublished: false` 줄로, JSON을 미공개 값으로 함께 되돌립니다(`--only`·`--verify-file`과 같이 쓰지 않음). 커밋한 뒤 8단계처럼 내보내기·push·Pages 실행까지 해야 공개 페이지 버튼과 앱 알림이 꺼집니다. 이미 받은 사용자의 앱은 다음 확인 때(최대 하루 뒤) 알림이 사라집니다.
 
 ### 8. README·공개 반영·Pages
 
@@ -236,7 +252,7 @@ gh run list --repo prestige-kim/DoIt --workflow pages.yml --limit 1
 
 ### 9. 공개 페이지 재확인
 
-`https://prestige-kim.github.io/DoIt/#windows-install`을 새로 고침(캐시를 피하려면 강력 새로 고침)해 Windows 탭에 켠 아키텍처의 버튼과 SHA-256만 보이는지 확인합니다. 버튼으로 다시 받은 파일의 해시가 페이지·`SHA256SUMS.txt`와 같은지 확인합니다. Mac 탭의 다운로드·appcast가 그대로인지도 봅니다.
+`https://prestige-kim.github.io/DoIt/#windows-install`을 새로 고침(캐시를 피하려면 강력 새로 고침)해 Windows 탭에 켠 아키텍처의 버튼과 SHA-256만 보이는지 확인합니다. 버튼으로 다시 받은 파일의 해시가 페이지·`SHA256SUMS.txt`와 같은지 확인합니다. `curl -fsS https://prestige-kim.github.io/DoIt/windows-release.json`의 버전·빌드·URL·해시가 커밋한 파일과 같은지 확인합니다. Mac 탭의 다운로드·appcast가 그대로인지도 봅니다.
 
 ### 10. Contributors 확인
 
@@ -249,5 +265,6 @@ gh api repos/prestige-kim/DoIt/contributors --jq '.[].login'
 ### 실패했을 때
 
 - Release 업로드 전 실패: 공개 페이지는 그대로이므로 고친 뒤 빌드 번호를 올려 다시 합니다.
-- Release 후 재다운로드 불일치: `WINDOWS_RELEASE`를 켜지 않습니다. 새 빌드 번호로 다시 올리고 잘못된 Release는 내용을 바꾸지 말고 초안·삭제 여부를 따로 판단합니다.
-- 공개 후 문제가 생기면 `WINDOWS_RELEASE`를 `releasePublished: false`로 되돌린 내용을 내보내기·push·Pages 실행으로 먼저 반영해 버튼을 끕니다.
+- Release 후 재다운로드 불일치: `WINDOWS_RELEASE`와 `windows-release.json`을 켜지 않습니다. 새 빌드 번호로 다시 올리고 잘못된 Release는 내용을 바꾸지 말고 초안·삭제 여부를 따로 판단합니다.
+- 7단계 도구가 거부하면 두 파일은 그대로입니다. 출력된 이유를 고친 뒤 미리보기부터 다시 합니다. 손으로 한 파일만 고치지 않습니다.
+- 공개 후 문제가 생기면 `python3 scripts/windows_release_config.py --unpublish --write`로 두 파일을 함께 미공개 값으로 되돌리고, 내보내기·push·Pages 실행으로 먼저 반영해 버튼과 앱 알림을 끕니다. 고친 새 빌드는 빌드 번호를 올려 3단계부터 다시 합니다.

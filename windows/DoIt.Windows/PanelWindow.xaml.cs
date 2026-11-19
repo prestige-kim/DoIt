@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Automation;
 using System.Windows.Controls;
+using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Shapes;
@@ -39,7 +40,9 @@ public partial class PanelWindow : Window
 
         foreach (var weekday in Korean.DateTimeFormat.AbbreviatedDayNames)
         {
-            Weekdays.Children.Add(new TextBlock { Text = weekday, TextAlignment = TextAlignment.Center });
+            var label = new TextBlock { Text = weekday, TextAlignment = TextAlignment.Center, FontSize = 12 };
+            label.SetResourceReference(TextBlock.ForegroundProperty, "DoIt.Muted");
+            Weekdays.Children.Add(label);
         }
 
         calendarCells = Enumerable.Range(0, 42).Select(_ => CreateCalendarCell()).ToArray();
@@ -57,11 +60,6 @@ public partial class PanelWindow : Window
     {
         // Windows 10 and older builds reject the corner attribute; the panel then stays square.
         NativeDesktop.TryRoundCorners(this);
-        // The Fluent theme normally supplies the stroke brush. Fall back to a system color if not.
-        if (TryFindResource("SurfaceStrokeColorDefaultBrush") is not Brush)
-        {
-            PanelFrame.SetResourceReference(Border.BorderBrushProperty, SystemColors.ActiveBorderBrushKey);
-        }
     }
 
     internal event Action? EditorRequested;
@@ -78,9 +76,11 @@ public partial class PanelWindow : Window
             // FrameBorder covers the 1px panel border on both sides.
             const double FrameBorder = 2;
             PanelContent.Measure(new Size(width - FrameBorder - SystemParameters.VerticalScrollBarWidth, double.PositiveInfinity));
-            // Calendar cells are 36 high, so 680 fits the month plus about three to four todos before scrolling.
+            // Rows are about 46 high and calendar cells 52 with margins. 760 fits a six-week month, the day's
+            // heading and about three rows before scrolling; 560 fits the list header, three LMS rows and
+            // about four todos. PanelPlacement still shrinks the panel to the work area.
             double height = Math.Ceiling(PanelContent.DesiredSize.Height) + FrameBorder;
-            return new Size(width, Math.Clamp(height, 170, calendar ? 680 : 520));
+            return new Size(width, Math.Clamp(height, 170, calendar ? 760 : 560));
         }
     }
 
@@ -101,15 +101,24 @@ public partial class PanelWindow : Window
         DisarmDelete();
         var showsCalendar = state.Mode == PanelMode.Calendar;
         CalendarView.Visibility = showsCalendar ? Visibility.Visible : Visibility.Collapsed;
-        ModeButton.Content = showsCalendar ? "목록" : "달력";
-        AutomationProperties.SetName(ModeButton, showsCalendar ? "할 일 목록 보기" : "월간 달력 보기");
+        string modeName = showsCalendar ? "할 일 목록 보기" : "월간 달력 보기";
+        ModeButton.Content = showsCalendar ? "\uE8FD" : "\uE787";
+        ModeButton.Style = (Style)FindResource(showsCalendar ? "DoIt.IconButton.Active" : "DoIt.IconButton");
+        ModeButton.ToolTip = modeName;
+        AutomationProperties.SetName(ModeButton, modeName);
+        TodayLabel.Text = state.Today.ToString("M/d(ddd)", Korean);
+        PlaceInputArea(showsCalendar);
 
         if (showsCalendar)
         {
             MonthHeading.Text = state.DisplayMonth.ToString("yyyy년 M월", Korean);
+            DayHeading.Text = state.SelectedDate == state.Today
+                ? state.SelectedDate.ToString("M월 d일", Korean) + " · 오늘"
+                : state.SelectedDate.ToString("M월 d일 (ddd)", Korean);
             RenderCalendarCells();
         }
         LmsTasks.Refresh(lms, state.Today, showsCalendar ? state.SelectedDate : null);
+        TodoDivider.Visibility = LmsTasks.Visibility;
 
         var visibleTodos = showsCalendar ? todos.ForDate(state.SelectedDate) : todos.Visible(state.Today);
         bool canWrite = todos.LoadError is null && CanModifySelectedDay;
@@ -121,11 +130,12 @@ public partial class PanelWindow : Window
             DueDatePicker.Visibility = Visibility.Collapsed;
         }
         DueDateButton.Visibility = showsCalendar ? Visibility.Collapsed : Visibility.Visible;
-        CalendarDueDate.Visibility = showsCalendar ? Visibility.Visible : Visibility.Collapsed;
         UpdateDueDateLabel();
         StorageError.Text = todos.LoadError ?? saveError ?? string.Empty;
         StorageError.Visibility = StorageError.Text.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
-        TodoHeading.Text = showsCalendar ? state.SelectedDate.ToString("M월 d일 (ddd) 할 일", Korean) : "할 일";
+        TodoCount.Text = visibleTodos.Count.ToString(Korean);
+        TodoDoneCount.Text = $"{visibleTodos.Count(item => item.IsDone)}개 완료";
+        AutomationProperties.SetName(TodoHeading, $"내 할 일 {visibleTodos.Count}개");
         TodoList.ItemsSource = visibleTodos.Select(item => new TodoRow(item, state.Today, canWrite, canWrite && !showsCalendar)).ToArray();
         EmptyDay.Text = showsCalendar ? "이 날의 할 일이 없어요." : "할 일이 없어요.";
         EmptyDay.Visibility = visibleTodos.Count == 0 && todos.LoadError is null ? Visibility.Visible : Visibility.Collapsed;
@@ -142,6 +152,7 @@ public partial class PanelWindow : Window
                 RenderCalendarCells();
             }
             LmsTasks.Refresh(lms, state.Today, calendar ? state.SelectedDate : null);
+            TodoDivider.Visibility = LmsTasks.Visibility;
             PanelSizeChanged?.Invoke();
         }
     }
@@ -159,21 +170,68 @@ public partial class PanelWindow : Window
     internal void CloseTransientControls()
     {
         DueDatePicker.Visibility = Visibility.Collapsed;
+        if (FindResource("DueDateMenu") is ContextMenu { IsOpen: true } menu)
+        {
+            menu.IsOpen = false;
+        }
         DisarmDelete();
+    }
+
+    // The list keeps the input under the header; the calendar puts it under the selected day's rows.
+    private void PlaceInputArea(bool calendar)
+    {
+        var children = PanelContent.Children;
+        bool atEnd = children.IndexOf(InputArea) == children.Count - 1;
+        if (calendar != atEnd)
+        {
+            children.Remove(InputArea);
+            if (calendar)
+            {
+                children.Add(InputArea);
+            }
+            else
+            {
+                children.Insert(children.IndexOf(CalendarView) + 1, InputArea);
+            }
+        }
+        InputArea.Margin = calendar ? new Thickness(0, 10, 0, 0) : new Thickness(0, 0, 0, 14);
+    }
+
+    private void OnDueChipSizeChanged(object sender, SizeChangedEventArgs e) => UpdateInputPadding();
+
+    private void OnDueChipVisibilityChanged(object sender, DependencyPropertyChangedEventArgs e) => UpdateInputPadding();
+
+    // Leave room on the right of the text for the date chip that sits inside the input.
+    private void UpdateInputPadding()
+    {
+        double right = DueDateButton.IsVisible ? DueDateButton.ActualWidth + 16 : 12;
+        InputBox.Padding = new Thickness(36, 9, right, 9);
     }
 
     private CalendarCell CreateCalendarCell()
     {
-        var label = new TextBlock { TextAlignment = TextAlignment.Center };
-        var marker = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(0, 2, 0, 0) };
+        // Today's number sits on a 28px green disc.
+        var todayDisc = new Ellipse { Width = 28, Height = 28, Visibility = Visibility.Collapsed };
+        todayDisc.SetResourceReference(Shape.FillProperty, "DoIt.Green");
+        var label = new TextBlock
+        {
+            TextAlignment = TextAlignment.Center,
+            FontSize = 15,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+        };
+        var number = new Grid { Width = 28, Height = 28, HorizontalAlignment = HorizontalAlignment.Center };
+        number.Children.Add(todayDisc);
+        number.Children.Add(label);
+        var marker = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(1, 2, 1, 0) };
         marker.SetResourceReference(Shape.FillProperty, "TodoAccent");
-        var lmsMarker = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(2, 2, 0, 0) };
+        var lmsMarker = new Ellipse { Width = 5, Height = 5, Margin = new Thickness(1, 2, 1, 0) };
         lmsMarker.SetResourceReference(Shape.FillProperty, "LmsAccent");
         var markers = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
         markers.Children.Add(marker);
         markers.Children.Add(lmsMarker);
         var content = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-        content.Children.Add(label);
+        content.Children.Add(number);
         content.Children.Add(markers);
 
         var button = new Button
@@ -183,7 +241,7 @@ public partial class PanelWindow : Window
         };
         button.Click += SelectDate;
         CalendarGrid.Children.Add(button);
-        return new CalendarCell(button, label, marker, lmsMarker);
+        return new CalendarCell(button, label, todayDisc, marker, lmsMarker);
     }
 
     private void RenderCalendarCells()
@@ -199,11 +257,11 @@ public partial class PanelWindow : Window
             : [];
         for (var index = 0; index < calendarCells.Length; index++)
         {
-            RenderCalendarCell(calendarCells[index], dates[index], todoMarkers, lmsMarkers);
+            RenderCalendarCell(calendarCells[index], index, dates[index], todoMarkers, lmsMarkers);
         }
     }
 
-    private void RenderCalendarCell(CalendarCell cell, DateOnly? date,
+    private void RenderCalendarCell(CalendarCell cell, int index, DateOnly? date,
         IReadOnlyDictionary<DateOnly, bool> markers, IReadOnlyDictionary<DateOnly, bool> lmsMarkers)
     {
         cell.Button.Tag = date;
@@ -218,17 +276,30 @@ public partial class PanelWindow : Window
         cell.LmsMarker.Visibility = hasLms ? Visibility.Visible : Visibility.Hidden;
         cell.LmsMarker.Opacity = hasIncompleteLms ? 1 : 0.35;
         cell.LmsMarker.SetResourceReference(Shape.FillProperty, hasIncompleteLms && date < state.Today ? "OverdueAccent" : "LmsAccent");
-        cell.Label.Opacity = date?.Month == state.DisplayMonth.Month ? 1 : 0.66;
-        cell.Label.FontWeight = date == state.Today ? FontWeights.Bold : FontWeights.Normal;
+        // Days of other months are hidden like the design. Leading ones keep their place in the first row;
+        // trailing ones collapse so a five-week month uses five rows (UniformGrid skips collapsed cells).
+        bool inMonth = date is { } shown && shown.Year == state.DisplayMonth.Year && shown.Month == state.DisplayMonth.Month;
+        cell.Button.Visibility = inMonth ? Visibility.Visible : index < 7 ? Visibility.Hidden : Visibility.Collapsed;
+
+        bool isToday = date == state.Today;
+        bool isPast = date < state.Today;
+        bool isSunday = date?.DayOfWeek == DayOfWeek.Sunday;
+        cell.TodayDisc.Visibility = isToday ? Visibility.Visible : Visibility.Collapsed;
+        cell.Label.FontWeight = isToday ? FontWeights.Bold : FontWeights.Normal;
+        cell.Label.SetResourceReference(TextBlock.ForegroundProperty,
+            isToday ? "DoIt.OnAccent" : isSunday ? "DoIt.Red" : isPast ? "DoIt.Muted" : "DoIt.Text");
+        cell.Label.Opacity = !isToday && isSunday && isPast ? 0.55 : 1;
 
         if (date == state.SelectedDate)
         {
-            cell.Button.SetResourceReference(BorderBrushProperty, "TodoAccent");
-            cell.Button.BorderThickness = new Thickness(2);
+            cell.Button.SetResourceReference(BorderBrushProperty, "DoIt.Green");
+            cell.Button.SetResourceReference(BackgroundProperty, "DoIt.GreenSoft");
+            cell.Button.BorderThickness = new Thickness(1.5);
         }
         else
         {
             cell.Button.ClearValue(BorderBrushProperty);
+            cell.Button.ClearValue(BackgroundProperty);
             cell.Button.ClearValue(BorderThicknessProperty);
         }
 
@@ -312,7 +383,12 @@ public partial class PanelWindow : Window
         if (e.Key == Key.Escape && !composing)
         {
             e.Handled = true;
-            if (DueDatePicker.Visibility == Visibility.Visible)
+            if (FindResource("DueDateMenu") is ContextMenu { IsOpen: true } menu)
+            {
+                menu.IsOpen = false;
+                DueDateButton.Focus();
+            }
+            else if (DueDatePicker.Visibility == Visibility.Visible)
             {
                 HideDatePicker(DueDateButton);
             }
@@ -323,6 +399,7 @@ public partial class PanelWindow : Window
         }
     }
 
+    // The chip opens a small menu: today, tomorrow, +1 week, or the calendar picker.
     private void ToggleDatePicker(object sender, RoutedEventArgs e)
     {
         if (DueDatePicker.Visibility == Visibility.Visible)
@@ -331,6 +408,16 @@ public partial class PanelWindow : Window
             return;
         }
 
+        if (FindResource("DueDateMenu") is ContextMenu menu)
+        {
+            menu.PlacementTarget = DueDateButton;
+            menu.Placement = PlacementMode.Bottom;
+            menu.IsOpen = true;
+        }
+    }
+
+    private void OpenDatePicker(object sender, RoutedEventArgs e)
+    {
         state.RefreshToday(today());
         DateTime date = DraftDueDate.ToDateTime(TimeOnly.MinValue);
         PickerCalendar.DisplayMode = CalendarMode.Month;
@@ -338,12 +425,13 @@ public partial class PanelWindow : Window
         PickerCalendar.DisplayDate = date;
         DueDatePicker.Visibility = Visibility.Visible;
         RenderState();
-        PickTodayButton.Focus();
+        // Focus after the menu has closed and handed focus back to the chip.
+        Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => PickerCalendar.Focus()));
     }
 
     private void PickRelativeDate(object sender, RoutedEventArgs e)
     {
-        if (sender is Button { Tag: string days })
+        if (sender is FrameworkElement { Tag: string days })
         {
             DateOnly localDate = today();
             state.RefreshToday(localDate);
@@ -352,6 +440,8 @@ public partial class PanelWindow : Window
                 : localDate.AddDays(Math.Min(offset, DateOnly.MaxValue.DayNumber - localDate.DayNumber));
             RenderState();
             HideDatePicker(InputBox);
+            // The menu returns focus to the chip when it closes; put it back in the input afterwards.
+            Dispatcher.BeginInvoke(DispatcherPriority.Input, new Action(() => InputBox.Focus()));
         }
     }
 
@@ -378,8 +468,10 @@ public partial class PanelWindow : Window
         DateOnly date = DraftDueDate;
         string label = date == state.Today ? "오늘" : date.ToString("M/d(ddd)", Korean);
         DueDateButton.Content = label;
-        CalendarDueDate.Text = label;
         AutomationProperties.SetName(DueDateButton, $"마감 날짜, {label}");
+        InputBox.Tag = state.Mode == PanelMode.Calendar
+            ? state.SelectedDate.ToString("M월 d일", Korean) + "에 할 일 추가…"
+            : "할 일 추가…";
     }
 
     private void OnInputKeyDown(object sender, KeyEventArgs e)
@@ -391,8 +483,6 @@ public partial class PanelWindow : Window
             SaveDraft();
         }
     }
-
-    private void AddTodo(object sender, RoutedEventArgs e) => SaveDraft();
 
     private void SaveDraft()
     {
@@ -520,7 +610,7 @@ public partial class PanelWindow : Window
         }));
     }
 
-    private sealed record CalendarCell(Button Button, TextBlock Label, Ellipse Marker, Ellipse LmsMarker);
+    private sealed record CalendarCell(Button Button, TextBlock Label, Ellipse TodayDisc, Ellipse Marker, Ellipse LmsMarker);
 
     private sealed class TodoRow(TodoItem item, DateOnly today, bool canToggle, bool canDelete) : INotifyPropertyChanged
     {
@@ -528,11 +618,13 @@ public partial class PanelWindow : Window
         public bool CanToggle => canToggle;
         public bool CanDelete => canDelete;
         public bool IsOverdue => !Item.IsDone && Item.DueDate < today;
+        public bool IsToday => !Item.IsDone && Item.DueDate == today;
         public bool DeleteArmed { get; private set; }
         public string DayLabel => Item.DayLabel(today);
-        public string DateLabel => Item.DueDate.ToString("M/d(ddd)", Korean);
+        public string DateLabel => Item.DueDate.ToString("M/d", CultureInfo.InvariantCulture);
+        public string DateDetail => Item.DueDate.ToString("M/d(ddd)", Korean);
         public Visibility DeleteVisibility => CanDelete ? Visibility.Visible : Visibility.Collapsed;
-        public string DeleteLabel => DeleteArmed ? "삭제?" : "×";
+        public string DeleteLabel => DeleteArmed ? "삭제?" : "\uE711";
         public string DeleteDescription => DeleteArmed ? $"{Item.Title} 삭제 확인" : $"{Item.Title} 삭제";
         public string CompletionLabel => $"{Item.Title} {(Item.IsDone ? "완료 취소" : "완료")}";
         public event PropertyChangedEventHandler? PropertyChanged;

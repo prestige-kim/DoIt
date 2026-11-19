@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using DoIt.Core;
 
@@ -29,7 +30,9 @@ public partial class LmsSection : UserControl
         }
         var status = snapshot.Enabled && selectedDate is null && (snapshot.IsSyncing || snapshot.Status is not (LmsSyncStatus.Ok or LmsSyncStatus.Never))
             ? StatusLabel(snapshot) : string.Empty;
-        HeadingText.Text = $"LMS 과제 · {rows.Count}개";
+        CountText.Text = rows.Count.ToString(CultureInfo.InvariantCulture);
+        AutomationProperties.SetName(Section, $"LMS 과제 {rows.Count}개");
+        SyncInfo.Text = snapshot.Enabled ? SyncLabel(snapshot) : string.Empty;
         SyncStatus.Text = status;
         SyncStatus.Visibility = status.Length == 0 ? Visibility.Collapsed : Visibility.Visible;
         bool canToggle = snapshot is { Enabled: true, HasFeedAddress: true, DisconnectPending: false }
@@ -56,7 +59,27 @@ public partial class LmsSection : UserControl
         _ => "아직 새로고침한 적이 없습니다.",
     };
 
-    private void OnExpansion(object sender, RoutedEventArgs e) => LayoutChanged?.Invoke();
+    // "N주 · HH:mm 동기화", or only "N주" before the first successful sync.
+    private static string SyncLabel(LmsSnapshot snapshot)
+    {
+        string weeks = $"{snapshot.Weeks}주";
+        return snapshot.LastSuccessAt is { } success
+            ? $"{weeks} · {success.ToLocalTime().ToString("HH:mm", CultureInfo.InvariantCulture)} 동기화"
+            : weeks;
+    }
+
+    private void OnExpansion(object sender, RoutedEventArgs e)
+    {
+        // Checked can fire while the XAML is still loading, before the body exists.
+        if (Body is null || Chevron is null)
+        {
+            return;
+        }
+        bool expanded = Section.IsChecked == true;
+        Body.Visibility = expanded ? Visibility.Visible : Visibility.Collapsed;
+        Chevron.Text = expanded ? "\uE70D" : "\uE76C";
+        LayoutChanged?.Invoke();
+    }
 
     private void ToggleDone(object sender, RoutedEventArgs e)
     {
@@ -79,7 +102,8 @@ public partial class LmsSection : UserControl
         public bool CanToggle { get; } = canToggle;
         public bool IsOverdue => !Row.IsDone && Row.Item.DueDate < today;
         public string CompletionLabel => $"{Row.Item.Title}, 과제 완료 체크";
-        public string DateLabel => Row.Item.DueDate.ToString("M/d(ddd)", CultureInfo.GetCultureInfo("ko-KR"))
+        public string DateLabel => Row.Item.DueDate.ToString("M/d", CultureInfo.InvariantCulture);
+        public string DateDetail => Row.Item.DueDate.ToString("M/d(ddd)", CultureInfo.GetCultureInfo("ko-KR"))
             + (Row.Item.DueTime is { } time ? " " + time.ToString("HH:mm", CultureInfo.InvariantCulture) : "");
 
         public string DayLabel => (Row.Item.DueDate.DayNumber - today.DayNumber) switch

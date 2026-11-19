@@ -4,18 +4,17 @@
         xmlns:local="clr-namespace:DoIt.Windows"
         Title="DoIt 할 일" WindowStyle="None" ResizeMode="NoResize"
         ShowInTaskbar="False" ShowActivated="False" Topmost="True"
+        Background="{DynamicResource DoIt.Bg}" Foreground="{DynamicResource DoIt.Text}"
+        FontFamily="{StaticResource DoIt.TextFont}"
         UseLayoutRounding="True" xml:lang="ko-KR">
     <Window.Resources>
-        <!-- 달력 칸: 평소에는 투명, 마우스를 올리면 옅은 배경, 선택된 날은 코드에서 2px 테두리를 준다. -->
+        <!-- 달력 칸: 높이 약 48, 반경 10, 평소 투명. 선택한 날은 코드에서 1.5px 초록 테두리와 옅은 초록 바탕을 준다. -->
         <Style x:Key="CalendarCellStyle" TargetType="Button">
-            <!-- 명시 스타일은 Fluent 테마의 Button 글자색을 이어받지 않고 고전 테마의 검정을 쓴다.
-                 패널의 다른 글자와 같은 창 글자색을 따라 밝은·어두운 모드 모두에서 보이게 한다. -->
-            <Setter Property="Foreground"
-                    Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Window}}" />
-            <Setter Property="Height" Value="36" />
+            <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+            <Setter Property="Height" Value="48" />
             <Setter Property="MinWidth" Value="0" />
             <Setter Property="MinHeight" Value="0" />
-            <Setter Property="Margin" Value="1" />
+            <Setter Property="Margin" Value="2" />
             <Setter Property="Padding" Value="0" />
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="Transparent" />
@@ -28,24 +27,21 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Grid Background="Transparent">
-                            <!-- 글자색을 옅게 깔아 밝은·어두운 테마 모두에서 보이는 배경을 만든다. -->
-                            <Border x:Name="Hover" CornerRadius="5" Opacity="0"
-                                    Background="{TemplateBinding Foreground}" />
-                            <Border x:Name="Selection" CornerRadius="5" Margin="2"
+                            <Border x:Name="Hover" CornerRadius="10" Visibility="Collapsed"
+                                    Background="{DynamicResource DoIt.Hover}" />
+                            <Border x:Name="Selection" CornerRadius="10"
+                                    Background="{TemplateBinding Background}"
                                     BorderBrush="{TemplateBinding BorderBrush}"
                                     BorderThickness="{TemplateBinding BorderThickness}" />
                             <ContentPresenter x:Name="Content" Margin="{TemplateBinding Padding}"
                                               HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
                                               VerticalAlignment="{TemplateBinding VerticalContentAlignment}" />
-                            <Border x:Name="FocusRing" CornerRadius="5" BorderThickness="2" Visibility="Collapsed"
-                                    BorderBrush="{TemplateBinding Foreground}" />
+                            <Border x:Name="FocusRing" CornerRadius="10" BorderThickness="2" Visibility="Collapsed"
+                                    BorderBrush="{DynamicResource DoIt.Muted}" />
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Hover" Property="Opacity" Value="0.08" />
-                            </Trigger>
-                            <Trigger Property="IsPressed" Value="True">
-                                <Setter TargetName="Hover" Property="Opacity" Value="0.14" />
+                                <Setter TargetName="Hover" Property="Visibility" Value="Visible" />
                             </Trigger>
                             <Trigger Property="IsKeyboardFocused" Value="True">
                                 <Setter TargetName="FocusRing" Property="Visibility" Value="Visible" />
@@ -59,106 +55,231 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- 입력창 안 날짜 칩: 작은 알약 + 아래 화살표 -->
+        <Style x:Key="DueChipStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource DoIt.Text}" />
+            <Setter Property="Background" Value="{DynamicResource DoIt.Hover}" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Padding" Value="9,3,7,3" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border CornerRadius="6" Background="{TemplateBinding Background}" />
+                            <Border x:Name="Shade" CornerRadius="6" Background="{TemplateBinding Foreground}" Opacity="0" />
+                            <StackPanel Orientation="Horizontal" Margin="{TemplateBinding Padding}">
+                                <ContentPresenter VerticalAlignment="Center" />
+                                <TextBlock Text="&#xE70D;" FontFamily="{StaticResource DoIt.IconFont}" FontSize="9"
+                                           Foreground="{DynamicResource DoIt.Muted}" Margin="5,1,0,0" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Shade" Property="Opacity" Value="0.08" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Shade" Property="Opacity" Value="0.14" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 행의 삭제 버튼: 평소 ✕ 글리프, 한 번 누르면 빨간 "삭제?" -->
+        <Style x:Key="RowDeleteStyle" TargetType="Button">
+            <Setter Property="Foreground" Value="{DynamicResource DoIt.Muted}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="FontFamily" Value="{StaticResource DoIt.IconFont}" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="MinWidth" Value="28" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Padding" Value="6,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource DoIt.FocusVisual}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Chrome" CornerRadius="6" Background="{TemplateBinding Background}"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource DoIt.Hover}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- 날짜 칩 메뉴 -->
+        <ContextMenu x:Key="DueDateMenu" Placement="Bottom">
+            <MenuItem Header="오늘" Tag="0" Click="PickRelativeDate" />
+            <MenuItem Header="내일" Tag="1" Click="PickRelativeDate" />
+            <MenuItem Header="+1주" Tag="7" Click="PickRelativeDate" />
+            <Separator />
+            <MenuItem Header="날짜 선택…" Click="OpenDatePicker" />
+        </ContextMenu>
     </Window.Resources>
-    <!-- Windows 11은 DWM이 바깥 모서리를 둥글게 자른다(코드). 1px 테두리도 같은 반경으로 맞춘다. -->
+    <!-- Windows 11 DWM이 창을 반경 약 8로 자르므로 테두리도 8에 맞춘다(14면 귀퉁이에 바탕이 비침). -->
     <Border x:Name="PanelFrame" BorderThickness="1" CornerRadius="8"
-            BorderBrush="{DynamicResource SurfaceStrokeColorDefaultBrush}">
+            Background="{DynamicResource DoIt.Bg}" BorderBrush="{DynamicResource DoIt.Edge}">
     <ScrollViewer x:Name="PanelScroll" VerticalScrollBarVisibility="Auto"
                   HorizontalScrollBarVisibility="Disabled" Focusable="False">
-        <StackPanel x:Name="PanelContent" Margin="16,12,16,12">
-            <DockPanel LastChildFill="True" Margin="0,0,0,12">
-                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right">
-                    <Button x:Name="ModeButton" Margin="0,0,6,0" Padding="10,5" Click="ToggleMode" />
-                    <Button Content="전체 편집기…" Margin="0,0,6,0" Padding="10,5" Click="OpenEditor" />
-                    <Button Content="설정" Padding="10,5" Click="OpenSettings" />
+        <StackPanel x:Name="PanelContent" Margin="18">
+            <!-- 머리줄: DoIt M/d(ddd) + 아이콘 버튼 3개 -->
+            <DockPanel LastChildFill="True" Margin="0,0,0,14">
+                <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                    <Button x:Name="ModeButton" Style="{StaticResource DoIt.IconButton}" Content="&#xE787;"
+                            ToolTip="월간 달력 보기" AutomationProperties.Name="월간 달력 보기" Click="ToggleMode" />
+                    <Button Style="{StaticResource DoIt.IconButton}" Content="&#xE70F;" Margin="4,0,0,0"
+                            ToolTip="전체 편집기" AutomationProperties.Name="전체 편집기" Click="OpenEditor" />
+                    <Button Style="{StaticResource DoIt.IconButton}" Content="&#xE713;" Margin="4,0,0,0"
+                            ToolTip="설정" AutomationProperties.Name="설정" Click="OpenSettings" />
                 </StackPanel>
-                <TextBlock Text="DoIt" VerticalAlignment="Center" FontSize="20" FontWeight="SemiBold" />
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="DoIt" Style="{StaticResource DoIt.Title}" VerticalAlignment="Center" />
+                    <TextBlock x:Name="TodayLabel" FontSize="15" Foreground="{DynamicResource DoIt.Muted}"
+                               Margin="8,2,0,0" VerticalAlignment="Center" />
+                </StackPanel>
             </DockPanel>
 
+            <!-- 달력 -->
             <StackPanel x:Name="CalendarView" Visibility="Collapsed">
-                <TextBlock x:Name="MonthHeading" Style="{StaticResource Heading}" />
-                <StackPanel Orientation="Horizontal" Margin="0,8,0,6">
-                    <Button Content="‹" AutomationProperties.Name="이전 달" Margin="0,0,6,0" Click="PreviousMonth" />
-                    <Button Content="오늘" Margin="0,0,6,0" Click="GoToToday" />
-                    <Button Content="›" AutomationProperties.Name="다음 달" Click="NextMonth" />
-                </StackPanel>
-                <UniformGrid x:Name="Weekdays" Columns="7" Margin="0,0,0,4" />
-                <UniformGrid x:Name="CalendarGrid" Columns="7" Margin="0,0,0,10"
+                <DockPanel Margin="0,0,0,8">
+                    <StackPanel Orientation="Horizontal" DockPanel.Dock="Right" VerticalAlignment="Center">
+                        <Button Style="{StaticResource DoIt.IconButton}" Width="28" Height="28" FontSize="12"
+                                Content="&#xE76B;" ToolTip="이전 달" AutomationProperties.Name="이전 달" Click="PreviousMonth" />
+                        <Button Style="{StaticResource DoIt.PillButton}" Content="오늘" Padding="10,3" FontSize="13"
+                                Margin="4,0" Click="GoToToday" />
+                        <Button Style="{StaticResource DoIt.IconButton}" Width="28" Height="28" FontSize="12"
+                                Content="&#xE76C;" ToolTip="다음 달" AutomationProperties.Name="다음 달" Click="NextMonth" />
+                    </StackPanel>
+                    <TextBlock x:Name="MonthHeading" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"
+                               Foreground="{DynamicResource DoIt.Text}" />
+                </DockPanel>
+                <UniformGrid x:Name="Weekdays" Columns="7" Margin="0,0,0,2" />
+                <UniformGrid x:Name="CalendarGrid" Columns="7"
                              KeyboardNavigation.TabNavigation="Once"
                              KeyboardNavigation.DirectionalNavigation="Contained" />
+                <DockPanel Margin="0,8,0,10">
+                    <TextBlock DockPanel.Dock="Right" Text="지난 날짜는 보기만 가능" Style="{StaticResource DoIt.Small}"
+                               VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                        <Ellipse Width="6" Height="6" Fill="{DynamicResource TodoAccent}" VerticalAlignment="Center" />
+                        <TextBlock Text="내 할 일" Style="{StaticResource DoIt.Small}" Margin="5,0,12,0" />
+                        <Ellipse Width="6" Height="6" Fill="{DynamicResource LmsAccent}" VerticalAlignment="Center" />
+                        <TextBlock Text="LMS 과제" Style="{StaticResource DoIt.Small}" Margin="5,0,12,0" />
+                        <Ellipse Width="6" Height="6" Fill="{DynamicResource OverdueAccent}" VerticalAlignment="Center" />
+                        <TextBlock Text="지난 미완료" Style="{StaticResource DoIt.Small}" Margin="5,0,0,0" />
+                    </StackPanel>
+                </DockPanel>
+                <Border Height="1" Background="{DynamicResource DoIt.Line}" Margin="0,0,0,12" />
+                <TextBlock x:Name="DayHeading" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource DoIt.Text}"
+                           Margin="0,0,0,8" />
             </StackPanel>
 
-            <StackPanel x:Name="QuickAdd" Margin="0,0,0,10">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
-                    <TextBox x:Name="InputBox" AutomationProperties.Name="할 일 제목" Padding="8,5" />
-                    <Button x:Name="DueDateButton" Grid.Column="1" Padding="6,3" Margin="6,0,0,0"
-                            Click="ToggleDatePicker" />
-                    <TextBlock x:Name="CalendarDueDate" Grid.Column="1" VerticalAlignment="Center"
-                               Margin="6,0,0,0" Style="{StaticResource MutedText}" />
-                    <Button Grid.Column="2" Content="추가" Padding="8,3" Margin="6,0,0,0" Click="AddTodo" />
-                </Grid>
-                <StackPanel x:Name="DueDatePicker" Visibility="Collapsed" Margin="0,8,0,0">
-                    <WrapPanel>
-                        <Button x:Name="PickTodayButton" Content="오늘" Tag="0" Padding="8,3" Margin="0,0,6,4" Click="PickRelativeDate" />
-                        <Button Content="내일" Tag="1" Padding="8,3" Margin="0,0,6,4" Click="PickRelativeDate" />
-                        <Button Content="+1주" Tag="7" Padding="8,3" Margin="0,0,6,4" Click="PickRelativeDate" />
-                    </WrapPanel>
-                    <Calendar x:Name="PickerCalendar" HorizontalAlignment="Left" />
-                    <Button Content="날짜 선택" Padding="8,3" HorizontalAlignment="Left" Click="PickCalendarDate" />
+            <!-- 입력 칸. 목록 화면에서는 머리줄 아래, 달력 화면에서는 맨 아래로 코드가 옮긴다. -->
+            <StackPanel x:Name="InputArea" Margin="0,0,0,14">
+                <StackPanel x:Name="QuickAdd">
+                    <Grid>
+                        <TextBox x:Name="InputBox" Style="{StaticResource DoIt.Input}" Tag="할 일 추가…"
+                                 AutomationProperties.Name="할 일 제목" Padding="36,9,12,9" />
+                        <TextBlock Text="&#xE710;" FontFamily="{StaticResource DoIt.IconFont}" FontSize="14"
+                                   Foreground="{DynamicResource DoIt.Green}" HorizontalAlignment="Left"
+                                   VerticalAlignment="Center" Margin="14,0,0,0" IsHitTestVisible="False" />
+                        <Button x:Name="DueDateButton" Style="{StaticResource DueChipStyle}" HorizontalAlignment="Right"
+                                VerticalAlignment="Center" Margin="0,0,8,0" Click="ToggleDatePicker"
+                                SizeChanged="OnDueChipSizeChanged" IsVisibleChanged="OnDueChipVisibilityChanged" />
+                    </Grid>
+                    <!-- "날짜 선택…"을 누르면 펼쳐지는 달력 고르기 -->
+                    <StackPanel x:Name="DueDatePicker" Visibility="Collapsed" Margin="0,8,0,0">
+                        <Calendar x:Name="PickerCalendar" HorizontalAlignment="Left" />
+                        <Button Content="날짜 선택" Style="{StaticResource DoIt.PillButton}" HorizontalAlignment="Left"
+                                Margin="0,4,0,0" Click="PickCalendarDate" />
+                    </StackPanel>
                 </StackPanel>
+                <TextBlock x:Name="StorageError" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,8,0,0" FontSize="13"
+                           Foreground="{DynamicResource DoIt.Red}" AutomationProperties.LiveSetting="Polite" />
+                <TextBlock x:Name="PastDay" Text="지난 날짜는 보기만 할 수 있어요." Visibility="Collapsed"
+                           Style="{StaticResource DoIt.Small}" FontSize="13" Margin="0,8,0,0" />
             </StackPanel>
-            <TextBlock x:Name="StorageError" Visibility="Collapsed" TextWrapping="Wrap" Margin="0,0,0,8"
-                       Foreground="{StaticResource OverdueAccent}" AutomationProperties.LiveSetting="Polite" />
-            <TextBlock x:Name="PastDay" Text="지난 날짜는 보기만 할 수 있어요." Visibility="Collapsed"
-                       Style="{StaticResource MutedText}" Margin="0,0,0,8" />
+
             <local:LmsSection x:Name="LmsTasks" />
-            <TextBlock x:Name="TodoHeading" Style="{StaticResource Heading}" Margin="0,0,0,4" />
-            <ItemsControl x:Name="TodoList">
+            <Border x:Name="TodoDivider" Height="1" Background="{DynamicResource DoIt.Line}" Margin="0,6,0,12" />
+
+            <!-- 내 할 일 머리: 이름 · 배지 · n개 완료 -->
+            <DockPanel x:Name="TodoHeader" Margin="0,0,0,4">
+                <TextBlock x:Name="TodoDoneCount" DockPanel.Dock="Right" Style="{StaticResource DoIt.Small}"
+                           VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock x:Name="TodoHeading" Text="내 할 일" FontSize="15" FontWeight="SemiBold"
+                               Foreground="{DynamicResource DoIt.Green}" VerticalAlignment="Center" />
+                    <Border Style="{StaticResource DoIt.Badge}" Background="{DynamicResource DoIt.GreenSoft}" Margin="8,0,0,0">
+                        <TextBlock x:Name="TodoCount" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource DoIt.Green}" />
+                    </Border>
+                </StackPanel>
+            </DockPanel>
+            <ItemsControl x:Name="TodoList" Focusable="False">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <DockPanel x:Name="Row" Margin="0,4" Background="Transparent" MouseLeave="CancelDelete"
-                                   LostKeyboardFocus="CancelDeleteOnFocusLoss">
-                            <CheckBox x:Name="DoneToggle" DockPanel.Dock="Left" IsChecked="{Binding Item.IsDone, Mode=OneWay}"
-                                      IsEnabled="{Binding CanToggle}" AutomationProperties.Name="{Binding CompletionLabel}"
-                                      Click="ToggleTodo" VerticalAlignment="Center" Margin="0,0,8,0" />
-                            <Button x:Name="DeleteButton" DockPanel.Dock="Right" Content="{Binding DeleteLabel}"
-                                    Visibility="{Binding DeleteVisibility}" AutomationProperties.Name="{Binding DeleteDescription}"
-                                    Click="DeleteTodo" Padding="6,2" Opacity="0" Margin="6,0,0,0" />
-                            <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center">
-                                <TextBlock x:Name="Deadline" Text="{Binding DayLabel}" FontWeight="SemiBold" TextAlignment="Right" />
-                                <TextBlock Text="{Binding DateLabel}" Style="{StaticResource MutedText}" TextAlignment="Right" />
-                            </StackPanel>
-                            <TextBlock x:Name="Title" Text="{Binding Item.Title}" TextWrapping="Wrap" ToolTip="{Binding Item.Title}"
-                                       VerticalAlignment="Center" />
-                        </DockPanel>
+                        <Border x:Name="Row" CornerRadius="8" MinHeight="44" Padding="10,5,6,5" Margin="-10,0,-10,2"
+                                Background="Transparent" MouseLeave="CancelDelete" LostKeyboardFocus="CancelDeleteOnFocusLoss">
+                            <DockPanel>
+                                <CheckBox x:Name="DoneToggle" DockPanel.Dock="Left" Style="{StaticResource DoIt.CircleCheck}"
+                                          IsChecked="{Binding Item.IsDone, Mode=OneWay}" IsEnabled="{Binding CanToggle}"
+                                          AutomationProperties.Name="{Binding CompletionLabel}"
+                                          Click="ToggleTodo" VerticalAlignment="Center" Margin="0,0,12,0" />
+                                <Button x:Name="DeleteButton" DockPanel.Dock="Right" Style="{StaticResource RowDeleteStyle}"
+                                        Content="{Binding DeleteLabel}" Visibility="{Binding DeleteVisibility}"
+                                        AutomationProperties.Name="{Binding DeleteDescription}"
+                                        Click="DeleteTodo" Opacity="0" Margin="6,0,0,0" VerticalAlignment="Center" />
+                                <StackPanel DockPanel.Dock="Right" Margin="8,0,0,0" VerticalAlignment="Center"
+                                            ToolTip="{Binding DateDetail}">
+                                    <TextBlock x:Name="Deadline" Text="{Binding DayLabel}" FontSize="13" FontWeight="Bold"
+                                               Foreground="{DynamicResource DoIt.Muted}" TextAlignment="Right" />
+                                    <TextBlock Text="{Binding DateLabel}" FontSize="12" Foreground="{DynamicResource DoIt.Muted}"
+                                               TextAlignment="Right" />
+                                </StackPanel>
+                                <TextBlock x:Name="Title" Text="{Binding Item.Title}" FontSize="15"
+                                           Foreground="{DynamicResource DoIt.Text}" TextTrimming="CharacterEllipsis"
+                                           ToolTip="{Binding Item.Title}" VerticalAlignment="Center" />
+                            </DockPanel>
+                        </Border>
                         <DataTemplate.Triggers>
                             <Trigger SourceName="Row" Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Row" Property="Background" Value="{DynamicResource DoIt.Hover}" />
                                 <Setter TargetName="DeleteButton" Property="Opacity" Value="1" />
                             </Trigger>
                             <Trigger SourceName="Row" Property="IsKeyboardFocusWithin" Value="True">
                                 <Setter TargetName="DeleteButton" Property="Opacity" Value="1" />
                             </Trigger>
                             <DataTrigger Binding="{Binding DeleteArmed}" Value="True">
-                                <Setter TargetName="DeleteButton" Property="Foreground" Value="{StaticResource OverdueAccent}" />
+                                <Setter TargetName="DeleteButton" Property="Foreground" Value="{DynamicResource DoIt.Red}" />
+                                <Setter TargetName="DeleteButton" Property="FontFamily" Value="{StaticResource DoIt.TextFont}" />
+                                <Setter TargetName="DeleteButton" Property="FontWeight" Value="SemiBold" />
+                            </DataTrigger>
+                            <DataTrigger Binding="{Binding IsToday}" Value="True">
+                                <Setter TargetName="Deadline" Property="Foreground" Value="{DynamicResource DoIt.Green}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding IsOverdue}" Value="True">
-                                <Setter TargetName="Deadline" Property="Foreground" Value="{StaticResource OverdueAccent}" />
+                                <Setter TargetName="Deadline" Property="Foreground" Value="{DynamicResource DoIt.Red}" />
                             </DataTrigger>
                             <DataTrigger Binding="{Binding Item.IsDone}" Value="True">
                                 <Setter TargetName="Title" Property="TextDecorations" Value="Strikethrough" />
-                                <Setter TargetName="Title" Property="Opacity" Value="0.65" />
+                                <Setter TargetName="Title" Property="Foreground" Value="{DynamicResource DoIt.Muted}" />
                             </DataTrigger>
                         </DataTemplate.Triggers>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
-            <TextBlock x:Name="EmptyDay" Text="할 일이 없어요." Visibility="Collapsed"
-                       Style="{StaticResource MutedText}" />
+            <TextBlock x:Name="EmptyDay" Text="할 일이 없어요." Visibility="Collapsed" Margin="0,4,0,0"
+                       Style="{StaticResource DoIt.Small}" FontSize="13" />
         </StackPanel>
     </ScrollViewer>
     </Border>

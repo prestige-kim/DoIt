@@ -1,0 +1,27 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- DESIGN.md 색 역할 (어두운 모드). 화면은 DynamicResource로만 쓴다. -->
+    <SolidColorBrush x:Key="DoIt.Bg" Color="#000000" />
+    <SolidColorBrush x:Key="DoIt.Text" Color="#F2F2F7" />
+    <SolidColorBrush x:Key="DoIt.Muted" Color="#A1A1A6" />
+    <SolidColorBrush x:Key="DoIt.Green" Color="#4CC38A" />
+    <SolidColorBrush x:Key="DoIt.GreenSoft" Color="#244CC38A" />
+    <SolidColorBrush x:Key="DoIt.Blue" Color="#7EA6FF" />
+    <SolidColorBrush x:Key="DoIt.BlueSoft" Color="#267EA6FF" />
+    <SolidColorBrush x:Key="DoIt.Red" Color="#FF6B61" />
+    <SolidColorBrush x:Key="DoIt.RedSoft" Color="#1AFF6B61" />
+    <SolidColorBrush x:Key="DoIt.Ring" Color="#6E6E73" />
+    <SolidColorBrush x:Key="DoIt.Line" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="DoIt.Input" Color="#2A2A2D" />
+    <SolidColorBrush x:Key="DoIt.Edge" Color="#1FFFFFFF" />
+    <SolidColorBrush x:Key="DoIt.Hover" Color="#14FFFFFF" />
+    <SolidColorBrush x:Key="DoIt.Group" Color="#111113" />
+    <SolidColorBrush x:Key="DoIt.SwitchOff" Color="#3A3A3C" />
+    <SolidColorBrush x:Key="DoIt.OnAccent" Color="#04150D" />
+    <SolidColorBrush x:Key="DoIt.Tooltip" Color="#2C2C2E" />
+    <SolidColorBrush x:Key="DoIt.TooltipText" Color="#F2F2F7" />
+    <SolidColorBrush x:Key="TodoAccent" Color="#4CC38A" />
+    <SolidColorBrush x:Key="LmsAccent" Color="#7EA6FF" />
+    <SolidColorBrush x:Key="OverdueAccent" Color="#FF6B61" />
+    <Color x:Key="DoIt.ShadowColor">#B3000000</Color>
+</ResourceDictionary>

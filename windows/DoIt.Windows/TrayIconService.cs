@@ -32,6 +32,7 @@ internal sealed class TrayIconService : IDisposable
     private const uint ExitCommand = 3;
     private const uint RefreshLmsCommand = 4;
     private const uint CleanupCommand = 5;
+    private const uint UpdateCommand = 6;
 
     private readonly Action<TrayInvocation> toggle;
     private readonly Action openEditor;
@@ -81,6 +82,8 @@ internal sealed class TrayIconService : IDisposable
     internal event Action? Resumed;
     internal event Action? LmsRefreshRequested;
     internal event Action? HistoryRequested;
+    internal event Action? UpdateDownloadRequested;
+    internal Func<string?>? UpdateMenuLabel { private get; set; }
     internal Func<bool>? CanRefreshLms { private get; set; }
     internal Func<int>? HistoryCount { private get; set; }
 
@@ -244,7 +247,9 @@ internal sealed class TrayIconService : IDisposable
         try
         {
             int cleanup = HistoryCount?.Invoke() ?? 0;
-            if (!AppendMenu(menu, 0, EditorCommand, "전체 편집기…")
+            string? update = UpdateMenuLabel?.Invoke();
+            if ((update is not null && !AppendMenu(menu, 0, UpdateCommand, update))
+                || !AppendMenu(menu, 0, EditorCommand, "전체 편집기…")
                 || !AppendMenu(menu, 0, SettingsCommand, "설정")
                 || (CanRefreshLms?.Invoke() == true && !AppendMenu(menu, 0, RefreshLmsCommand, "LMS 지금 새로고침"))
                 || (cleanup > 0 && !AppendMenu(menu, 0, CleanupCommand, $"기록 정리 필요 ({cleanup}개)"))
@@ -278,6 +283,9 @@ internal sealed class TrayIconService : IDisposable
                 break;
             case CleanupCommand:
                 HistoryRequested?.Invoke();
+                break;
+            case UpdateCommand:
+                UpdateDownloadRequested?.Invoke();
                 break;
             case ExitCommand:
                 exit();

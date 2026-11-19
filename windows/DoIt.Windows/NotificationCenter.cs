@@ -80,8 +80,9 @@ internal sealed class NotificationCenter : IDisposable
                         "이 PC의 관리 정책이 앱 알림을 막고 있습니다. PC 관리자에게 문의해 주세요.",
                     AppNotificationSetting.DisabledByManifest =>
                         "DoIt 설치 구성 문제로 알림이 꺼져 있습니다. (DisabledByManifest)",
+                    // Windows App SDK reports Unsupported only for an elevated process (IsSupported = !IsElevated).
                     AppNotificationSetting.Unsupported =>
-                        "이 Windows에서는 앱 알림을 사용할 수 없습니다. (Unsupported)",
+                        "DoIt이 관리자 권한으로 실행 중이라 Windows 알림을 쓸 수 없습니다. UAC가 꺼져 있거나 관리자 계정이면 이렇게 됩니다.",
                     var other => $"Windows 설정에서 DoIt 알림을 허용해 주세요. ({other})"
                 };
             }

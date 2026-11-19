@@ -3,15 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              ShutdownMode="OnExplicitShutdown" ThemeMode="System">
     <Application.Resources>
-        <Style x:Key="MutedText" TargetType="TextBlock">
-            <Setter Property="Opacity" Value="0.72" />
-        </Style>
-        <Style x:Key="Heading" TargetType="TextBlock">
-            <Setter Property="FontSize" Value="16" />
-            <Setter Property="FontWeight" Value="SemiBold" />
-        </Style>
-        <SolidColorBrush x:Key="TodoAccent" Color="#3FBF7F" />
-        <SolidColorBrush x:Key="LmsAccent" Color="#4978BE" />
-        <SolidColorBrush x:Key="OverdueAccent" Color="#D44141" />
+        <!-- 색 사전(Colors.Light/Dark.xaml)은 AppTheme이 Windows 앱 테마에 맞춰 시작할 때 더하고 바꾼다. -->
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Theme/Controls.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>
